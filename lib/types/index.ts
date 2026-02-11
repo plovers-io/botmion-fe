@@ -18,7 +18,7 @@ export type {
 } from "./layout";
 
 // Form types
-export type { AuthFormProps, DummyUser } from "./form";
+export type { AuthFormProps } from "./form";
 
 // Pagination
 export interface PaginatedResponse<T> {

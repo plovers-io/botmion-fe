@@ -2,17 +2,12 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FaGoogle, FaFacebook } from "react-icons/fa";
+import { FaGoogle } from "react-icons/fa";
 import { Mail, Lock, User, Eye, EyeOff, Loader } from "lucide-react";
 import { toast } from "react-toastify";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
-import { AuthFormProps, DummyUser } from "@/lib/types/form";
-
-// Dummy user data for login
-const DUMMY_USERS: DummyUser[] = [
-  { email: "user@example.com", password: "password123", name: "John Doe" },
-  { email: "test@test.com", password: "test123", name: "Test User" },
-];
+import { AuthService } from "@/lib/services/auth-service";
+import { AuthFormProps } from "@/lib/types/form";
 
 const AuthForm: React.FC<AuthFormProps> = ({ isLogin, onToggle }) => {
   const router = useRouter();
@@ -29,96 +24,104 @@ const AuthForm: React.FC<AuthFormProps> = ({ isLogin, onToggle }) => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     if (!email || !password) {
       toast.error("Please fill in all fields");
-      setLoading(false);
       return;
     }
 
     if (!validateEmail(email)) {
       toast.error("Please enter a valid email");
-      setLoading(false);
       return;
     }
 
-    // Check against dummy data
-    const user = DUMMY_USERS.find(
-      (u) => u.email === email && u.password === password,
-    );
+    setLoading(true);
 
-    if (user) {
-      toast.success(`Welcome back, ${user.name}!`);
-      login({ email: user.email, name: user.name });
+    try {
+      const response = await AuthService.login({ email, password });
+      
+      // Update auth store with real API response
+      login(response);
+      
+      toast.success(`Welcome back, ${response.user.first_name}!`);
       setEmail("");
       setPassword("");
 
-      // Redirect to home page after brief delay
+      // Redirect to home page
       setTimeout(() => {
         router.push("/home");
-      }, 1500);
-    } else {
-      toast.error("Invalid email or password");
+      }, 500);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Login failed";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     if (!name || !email || !password) {
       toast.error("Please fill in all fields");
-      setLoading(false);
       return;
     }
 
     if (name.length < 2) {
       toast.error("Name must be at least 2 characters");
-      setLoading(false);
       return;
     }
 
     if (!validateEmail(email)) {
       toast.error("Please enter a valid email");
-      setLoading(false);
       return;
     }
 
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      setLoading(false);
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters");
       return;
     }
 
-    if (DUMMY_USERS.some((u) => u.email === email)) {
-      toast.error("Email already registered. Please login instead.");
+    setLoading(true);
+
+    try {
+      // Split name into first and last name
+      const nameParts = name.trim().split(" ");
+      const first_name = nameParts[0];
+      const last_name = nameParts.slice(1).join(" ") || nameParts[0];
+
+      const response = await AuthService.register({
+        email,
+        password,
+        first_name,
+        last_name,
+        user_type: "individual"
+      });
+      
+      toast.success(response.message || "Registration successful! Please check your email for OTP.");
+      
+      setName("");
+      setEmail("");
+      setPassword("");
+
+      // Redirect to OTP verification
+      setTimeout(() => {
+        router.push(`/auth/verify-otp?email=${encodeURIComponent(email)}&purpose=register`);
+      }, 1500);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Registration failed";
+      toast.error(errorMessage);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    toast.success("Account created successfully! Switching to login...");
-    setName("");
-    setEmail("");
-    setPassword("");
-
-    // Auto-switch to login after 2 seconds
-    setTimeout(() => {
-      onToggle();
-    }, 2000);
-
-    setLoading(false);
   };
 
-  const handleSSOLogin = (provider: string) => {
-    toast.info(`${provider} SSO login - Redirecting to ${provider}...`);
+  const handleGoogleLogin = async () => {
+    toast.info("Google SSO integration - Coming soon!");
+    // TODO: Implement Google OAuth flow
+    // Backend endpoints available:
+    // - GET /api/user/v1/auth/google/url/
+    // - POST /api/user/v1/auth/google/login/
   };
 
   return (
@@ -208,19 +211,11 @@ const AuthForm: React.FC<AuthFormProps> = ({ isLogin, onToggle }) => {
       <div className="flex gap-3">
         <button
           type="button"
-          onClick={() => handleSSOLogin("Google")}
+          onClick={handleGoogleLogin}
           className="flex-1 flex items-center justify-center gap-2 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
         >
           <FaGoogle className="text-red-500" size={20} />
           <span className="text-sm font-medium">Google</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => handleSSOLogin("Facebook")}
-          className="flex-1 flex items-center justify-center gap-2 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-        >
-          <FaFacebook className="text-blue-600" size={20} />
-          <span className="text-sm font-medium">Facebook</span>
         </button>
       </div>
 
@@ -236,14 +231,16 @@ const AuthForm: React.FC<AuthFormProps> = ({ isLogin, onToggle }) => {
         </button>
       </div>
 
-      {/* Dummy credentials hint */}
+      {/* Forgot Password Link */}
       {isLogin && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-xs">
-          <strong>Demo credentials:</strong>
-          <br />
-          Email: user@example.com | Password: password123
-          <br />
-          Email: test@test.com | Password: test123
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => router.push("/auth/forgot-password")}
+            className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+          >
+            Forgot your password?
+          </button>
         </div>
       )}
     </div>

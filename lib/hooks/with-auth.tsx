@@ -19,10 +19,10 @@ export function withAuth<P extends object>(Component: React.ComponentType<P>) {
       if (mounted && !isAuthenticated && !isLoggingOut) {
         // Only show error if NOT logging out intentionally
         toast.error("Please login first");
-        router.push("/");
+        router.push("/auth/login");
       } else if (mounted && !isAuthenticated && isLoggingOut) {
         // Silent redirect on logout
-        router.push("/");
+        router.push("/auth/login");
       }
     }, [isAuthenticated, router, mounted, isLoggingOut]);
 
