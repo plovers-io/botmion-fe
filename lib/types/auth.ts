@@ -81,6 +81,16 @@ export interface ChangePasswordRequest {
   new_password: string;
 }
 
+// Google Auth types
+export interface GoogleAuthURLResponse {
+  authorization_url: string;
+}
+
+export interface GoogleLoginRequest {
+  code: string;
+  redirect_uri: string;
+}
+
 // Auth store
 export interface AuthStore {
   user: User | null;

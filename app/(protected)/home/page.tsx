@@ -30,8 +30,6 @@ const HomePage = () => {
       logout();
       toast.info("Logged out locally");
       router.push("/auth/login");
-    } finally {
-      setLoggingOut(false);
     }
   };
 

@@ -11,6 +11,8 @@ import {
   ResetPasswordRequest,
   ChangePasswordRequest,
   RefreshTokenResponse,
+  GoogleAuthURLResponse,
+  GoogleLoginRequest,
 } from "@/lib/types/auth";
 
 const API_BASE_URL =
@@ -156,6 +158,38 @@ export class AuthService {
             Authorization: `Bearer ${this.getAccessToken()}`,
           },
         }
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Get Google Auth URL
+   * Returns Google OAuth2 authorization URL
+   */
+  static async getGoogleAuthURL(redirectUri: string): Promise<GoogleAuthURLResponse> {
+    try {
+      const response = await axios.get<GoogleAuthURLResponse>(
+        `${API_BASE_URL}/v1/auth/google/url/`,
+        { params: { redirect_uri: redirectUri } }
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Google Login
+   * Exchanges Google auth code for access/refresh tokens
+   */
+  static async googleLogin(data: GoogleLoginRequest): Promise<LoginResponse> {
+    try {
+      const response = await axios.post<LoginResponse>(
+        `${API_BASE_URL}/v1/auth/google/login/`,
+        data
       );
       return response.data;
     } catch (error) {
