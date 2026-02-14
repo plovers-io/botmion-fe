@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
 import { AuthService } from "@/lib/services/auth-service";
