@@ -30,6 +30,8 @@ const HomePage = () => {
       logout();
       toast.info("Logged out locally");
       router.push("/auth/login");
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -40,7 +42,7 @@ const HomePage = () => {
           <h1 className="text-2xl font-bold text-violet-600">Welcome</h1>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
           >
             <LogOut size={18} />
             Logout

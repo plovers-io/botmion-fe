@@ -27,23 +27,22 @@ export function middleware(request: NextRequest) {
 
   // 2. CORS headers for API
   if (pathname.startsWith("/api/")) {
-    response.headers.set("Access-Control-Allow-Origin", "*");
+    // TODO: Restrict this to trusted origins instead of '*'
+    const allowedOrigin = process.env.NEXT_PUBLIC_ALLOWED_ORIGIN || "*";
+    response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
     response.headers.set(
       "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE",
+      "GET, POST, PUT, DELETE, OPTIONS",
+    );
+    response.headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization",
     );
     response.headers.set("X-API-Version", "v1");
   }
 
-  // 3. Request logging with timing
-  const processingTime = Date.now() - startTime;
-  console.log(
-    `[${new Date().toISOString()}] ${request.method.padEnd(6)} ${pathname.padEnd(40)} | ${processingTime}ms`,
-  );
-
-  // 4. Add custom headers to track requests
+  // 3. Add custom headers to track requests
   response.headers.set("X-Request-ID", crypto.randomUUID());
-  response.headers.set("X-Response-Time", `${processingTime}ms`);
 
   // 5. Add cache control headers based on path
   if (pathname.startsWith("/api/")) {
@@ -57,16 +56,24 @@ export function middleware(request: NextRequest) {
       "public, max-age=31536000, immutable",
     );
   } else {
+    // Dynamic/HTML pages should not be cached to avoid stale or leaked content
     response.headers.set(
       "Cache-Control",
-      "public, max-age=3600, s-maxage=3600",
+      "no-store",
     );
   }
+
+  // 4. Request logging with timing (computed after all middleware work)
+  const processingTime = Date.now() - startTime;
+  console.log(
+    `[${new Date().toISOString()}] ${request.method.padEnd(6)} ${pathname.padEnd(40)} | ${processingTime}ms`,
+  );
+  response.headers.set("X-Response-Time", `${processingTime}ms`);
 
   return response;
 }
 
-// config.matcher - এটি বলে দেয় কোন routes এ middleware run করতে হবে
+// config.matcher - defines which routes the middleware should run on
 export const config = {
   // Match all routes except static files and images
   // Example matches: /, /login, /protected/home, /api/users

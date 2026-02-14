@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     permissions: { contents: read, pull-requests: write } # 'write' for leaving the summary comment
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
       with: { fetch-depth: 0 }
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v5
       with: { python-version: "3.13" }
     - name: Install AI Code Review tool
       run: pip install gito.bot~=4.0
@@ -28,8 +28,12 @@ jobs:
         PR_NUMBER_FROM_WORKFLOW_DISPATCH: ${{ github.event.inputs.pr_number }}
       run: |
         gito --verbose review
-        gito github-comment --token ${{ secrets.CODE_GITHUB_TOKEN }}
-    - uses: actions/upload-artifact@v6
+        if [ -n "${GITHUB_TOKEN}" ]; then
+          gito github-comment --token "${GITHUB_TOKEN}"
+        else
+          echo "Skipping GitHub comment: CODE_GITHUB_TOKEN is not set."
+        fi
+    - uses: actions/upload-artifact@v4
       with:
         name: ai-code-review-results
         path: |

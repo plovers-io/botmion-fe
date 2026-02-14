@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader } from "lucide-react";
 import { toast } from "react-toastify";
@@ -12,19 +12,25 @@ function CallbackContent() {
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
   const [processing, setProcessing] = useState(true);
+  const hasRun = useRef(false);
+
+  const code = searchParams.get("code");
+  const error = searchParams.get("error");
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    const error = searchParams.get("error");
+    if (hasRun.current) return;
+    hasRun.current = true;
 
     if (error) {
       toast.error("Google login was cancelled or failed");
+      setProcessing(false);
       router.push("/auth/login");
       return;
     }
 
     if (!code) {
       toast.error("No authorization code received");
+      setProcessing(false);
       router.push("/auth/login");
       return;
     }
@@ -51,7 +57,7 @@ function CallbackContent() {
     };
 
     handleGoogleLogin();
-  }, [searchParams, login, router]);
+  }, [code, error, login, router]);
 
   if (processing) {
     return (

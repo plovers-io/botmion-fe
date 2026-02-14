@@ -70,7 +70,10 @@ export default function ForgotPasswordPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Email Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="forgot-email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Email Address
             </label>
             <div className="relative">
@@ -79,6 +82,7 @@ export default function ForgotPasswordPage() {
                 size={20}
               />
               <input
+                id="forgot-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

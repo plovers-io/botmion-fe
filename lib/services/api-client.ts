@@ -1,9 +1,22 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "axios";
 import { ApiError } from "@/lib/types";
 import { AuthService } from "./auth-service";
+import { useAuthStore } from "@/lib/store/auth-store-v2";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/user";
+
+/**
+ * Helper to read tokens from the zustand persisted store.
+ * This avoids direct localStorage access and keeps tokens in a single source of truth.
+ */
+function getTokensFromStore() {
+  const state = useAuthStore.getState();
+  return {
+    accessToken: state.accessToken,
+    refreshToken: state.refreshToken,
+  };
+}
 
 class ApiClient {
   private axiosInstance: AxiosInstance;
@@ -25,13 +38,10 @@ class ApiClient {
     // Request interceptor
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        // Add auth token if available
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("access_token")
-            : null;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        // Read token from zustand store (single source of truth)
+        const { accessToken } = getTokensFromStore();
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
         }
         return config;
       },
@@ -54,6 +64,7 @@ class ApiClient {
               this.failedQueue.push({ resolve, reject });
             })
               .then(() => {
+                originalRequest._retry = true;
                 return this.axiosInstance(originalRequest);
               })
               .catch((err) => {
@@ -64,17 +75,13 @@ class ApiClient {
           originalRequest._retry = true;
           this.isRefreshing = true;
 
-          const refreshToken =
-            typeof window !== "undefined"
-              ? localStorage.getItem("refresh_token")
-              : null;
+          const { refreshToken } = getTokensFromStore();
 
           if (!refreshToken) {
             this.isRefreshing = false;
-            // Redirect to login or clear auth
+            // Clear auth state and redirect to login
+            useAuthStore.getState().clearAuth();
             if (typeof window !== "undefined") {
-              localStorage.removeItem("access_token");
-              localStorage.removeItem("refresh_token");
               window.location.href = "/auth/login";
             }
             return Promise.reject(error);
@@ -83,15 +90,16 @@ class ApiClient {
           try {
             const response = await AuthService.refreshToken(refreshToken);
             
-            // Update tokens in localStorage
-            if (typeof window !== "undefined") {
-              localStorage.setItem("access_token", response.access_token);
-              localStorage.setItem("refresh_token", response.refresh_token);
-            }
+            // Update tokens in zustand store
+            useAuthStore.getState().setTokens({
+              access_token: response.access_token,
+              refresh_token: response.refresh_token,
+            });
 
             // Update authorization header
             this.axiosInstance.defaults.headers.common["Authorization"] =
               `Bearer ${response.access_token}`;
+            originalRequest.headers = originalRequest.headers ?? {};
             originalRequest.headers.Authorization = `Bearer ${response.access_token}`;
 
             // Process the failed queue
@@ -105,10 +113,9 @@ class ApiClient {
             this.processQueue(refreshError);
             this.isRefreshing = false;
 
-            // Clear tokens and redirect to login
+            // Clear auth state and redirect to login
+            useAuthStore.getState().clearAuth();
             if (typeof window !== "undefined") {
-              localStorage.removeItem("access_token");
-              localStorage.removeItem("refresh_token");
               window.location.href = "/auth/login";
             }
 

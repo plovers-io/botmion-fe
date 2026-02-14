@@ -14,6 +14,7 @@ import {
   GoogleAuthURLResponse,
   GoogleLoginRequest,
 } from "@/lib/types/auth";
+import { useAuthStore } from "@/lib/store/auth-store-v2";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/user";
@@ -75,14 +76,13 @@ export class AuthService {
    */
   static async logout(refreshToken: string): Promise<{ detail: string }> {
     try {
+      const token = this.getAccessToken();
       const response = await axios.post<{ detail: string }>(
         `${API_BASE_URL}/v1/logout/`,
         { refresh_token: refreshToken },
-        {
-          headers: {
-            Authorization: `Bearer ${this.getAccessToken()}`,
-          },
-        }
+        token
+          ? { headers: { Authorization: `Bearer ${token}` } }
+          : undefined
       );
       return response.data;
     } catch (error) {
@@ -150,12 +150,16 @@ export class AuthService {
     data: ChangePasswordRequest
   ): Promise<{ message: string }> {
     try {
+      const token = this.getAccessToken();
+      if (!token) {
+        throw new Error("Not authenticated");
+      }
       const response = await axios.post<{ message: string }>(
         `${API_BASE_URL}/v1/change-password/`,
         data,
         {
           headers: {
-            Authorization: `Bearer ${this.getAccessToken()}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -198,13 +202,10 @@ export class AuthService {
   }
 
   /**
-   * Get stored access token
+   * Get stored access token from zustand store (single source of truth)
    */
   private static getAccessToken(): string | null {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("access_token");
-    }
-    return null;
+    return useAuthStore.getState().accessToken;
   }
 
   /**

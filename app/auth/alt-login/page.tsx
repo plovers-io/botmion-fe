@@ -17,7 +17,7 @@ const AuthFormPage = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-blue-500 opacity-0 lg:opacity-10"></div>
               <div className="relative h-full w-full flex items-center justify-center p-8">
                 <Image
-                  src="/login page.webp"
+                  src="/login-page.webp"
                   alt="Auth illustration"
                   width={400}
                   height={500}

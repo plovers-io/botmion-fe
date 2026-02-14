@@ -60,10 +60,14 @@ export default function LoginPage() {
     try {
       const redirectUri = `${window.location.origin}/auth/callback`;
       const response = await AuthService.getGoogleAuthURL(redirectUri);
+      if (!response?.authorization_url) {
+        throw new Error("Failed to initiate Google login");
+      }
       window.location.href = response.authorization_url;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to initiate Google login";
       toast.error(errorMessage);
+    } finally {
       setGoogleLoading(false);
     }
   };
@@ -75,7 +79,7 @@ export default function LoginPage() {
           {/* Left Side - Image */}
           <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-purple-100 to-blue-100 p-8">
             <img
-              src="/login page.webp"
+              src="/login-page.webp"
               alt="Login illustration"
               className="max-w-full h-auto object-contain"
             />

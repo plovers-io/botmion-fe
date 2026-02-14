@@ -12,12 +12,7 @@ export const useAuthStore = create<AuthStore>()(
       isLoggingOut: false,
 
       login: (data: LoginResponse) => {
-        // Store tokens in localStorage
-        if (typeof window !== "undefined") {
-          localStorage.setItem("access_token", data.access_token);
-          localStorage.setItem("refresh_token", data.refresh_token);
-        }
-        
+        // Tokens are managed by zustand persist storage only (no duplicate localStorage)
         set({
           user: data.user,
           accessToken: data.access_token,
@@ -28,18 +23,15 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
-        // Clear tokens from localStorage
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-        }
-        
+        // Tokens are cleared via zustand persist storage
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
-          isLoggingOut: false,
+          // NOTE: Do NOT reset isLoggingOut here.
+          // It must stay true so withAuth HOC can distinguish
+          // intentional logout from unauthorized access.
         });
       },
 
@@ -47,12 +39,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ user, isAuthenticated: user !== null }),
 
       setTokens: (tokens: AuthTokens) => {
-        // Store tokens in localStorage
-        if (typeof window !== "undefined") {
-          localStorage.setItem("access_token", tokens.access_token);
-          localStorage.setItem("refresh_token", tokens.refresh_token);
-        }
-        
+        // Tokens are managed by zustand persist storage only
         set({
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
@@ -62,12 +49,7 @@ export const useAuthStore = create<AuthStore>()(
       setLoggingOut: (value: boolean) => set({ isLoggingOut: value }),
 
       clearAuth: () => {
-        // Clear tokens from localStorage
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("access_token");
-          localStorage.removeItem("refresh_token");
-        }
-        
+        // Tokens are cleared via zustand persist storage
         set({
           user: null,
           accessToken: null,

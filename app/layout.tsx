@@ -16,8 +16,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Next.js App",
   description: "Modern Next.js application with App Router",
-  title: "Next.js App",
-  description: "Modern Next.js application with App Router",
 };
 
 export default function RootLayout({
@@ -29,7 +27,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
+        suppressHydrationWarning
       >
         <ReactQueryProvider>
           <div className="flex min-h-screen">

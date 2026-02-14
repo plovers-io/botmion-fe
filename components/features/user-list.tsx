@@ -21,7 +21,6 @@ export function UserList() {
     return (
       <Card>
         <p className="text-center text-gray-500">Loading users...</p>
-        console.log("data", data); console.log("isLoading", isLoading);
       </Card>
     );
   }

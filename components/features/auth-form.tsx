@@ -100,13 +100,15 @@ const AuthForm: React.FC<AuthFormProps> = ({ isLogin, onToggle }) => {
       
       toast.success(response.message || "Registration successful! Please check your email for OTP.");
       
+      const signupEmail = email;
+
       setName("");
       setEmail("");
       setPassword("");
 
       // Redirect to OTP verification
       setTimeout(() => {
-        router.push(`/auth/verify-otp?email=${encodeURIComponent(email)}&purpose=register`);
+        router.push(`/auth/verify-otp?email=${encodeURIComponent(signupEmail)}&purpose=register`);
       }, 1500);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Registration failed";

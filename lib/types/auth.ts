@@ -25,7 +25,7 @@ export interface RegisterResponse {
   message: string;
   user: {
     email: string;
-    uuid: string;
+    id: string;
   };
 }
 

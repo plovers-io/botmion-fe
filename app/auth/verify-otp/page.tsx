@@ -21,10 +21,12 @@ function OTPVerificationContent() {
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
-    const purposeParam = searchParams.get("purpose") as "register" | "forgot_password";
+    const purposeParam = searchParams.get("purpose");
     
     if (emailParam) setEmail(emailParam);
-    if (purposeParam) setPurpose(purposeParam);
+    if (purposeParam === "register" || purposeParam === "forgot_password") {
+      setPurpose(purposeParam);
+    }
   }, [searchParams]);
 
   const handleOtpChange = (index: number, value: string) => {
@@ -99,7 +101,7 @@ function OTPVerificationContent() {
           }, 1500);
         } else if (purpose === "forgot_password" && response.reset_token) {
           // Redirect to reset password page with token
-          router.push(`/auth/reset-password?token=${response.reset_token}&email=${encodeURIComponent(email)}`);
+          router.push(`/auth/reset-password?token=${encodeURIComponent(response.reset_token)}&email=${encodeURIComponent(email)}`);
         }
       }
     } catch (error) {
