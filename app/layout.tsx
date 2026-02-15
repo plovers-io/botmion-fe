@@ -30,10 +30,8 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ReactQueryProvider>
-          <div className="flex min-h-screen">
-            <main className="flex-1 lg:ml-0">
-              <div>{children}</div>
-            </main>
+          <div className="min-h-screen">
+            {children}
           </div>
         </ReactQueryProvider>
       </body>

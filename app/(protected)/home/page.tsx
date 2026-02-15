@@ -1,79 +1,93 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
-import { AuthService } from "@/lib/services/auth-service";
-import { LogOut } from "lucide-react";
-import { toast } from "react-toastify";
+import { Bot, MessageSquare, Plug, CreditCard } from "lucide-react";
+import Link from "next/link";
+
+const quickLinks = [
+  {
+    label: "Chatbots",
+    href: "/chatbots",
+    icon: <Bot size={24} />,
+    description: "Create and manage your AI chatbots",
+    color: "bg-blue-50 text-blue-600 border-blue-200",
+  },
+  {
+    label: "Conversations",
+    href: "/conversations",
+    icon: <MessageSquare size={24} />,
+    description: "View and manage chat conversations",
+    color: "bg-green-50 text-green-600 border-green-200",
+  },
+  {
+    label: "Integrations",
+    href: "/integrations",
+    icon: <Plug size={24} />,
+    description: "Connect Messenger, WhatsApp & Slack",
+    color: "bg-orange-50 text-orange-600 border-orange-200",
+  },
+  {
+    label: "Subscription",
+    href: "/subscription",
+    icon: <CreditCard size={24} />,
+    description: "Manage your plan and billing",
+    color: "bg-violet-50 text-violet-600 border-violet-200",
+  },
+];
 
 const HomePage = () => {
-  const router = useRouter();
-  const { user, logout, setLoggingOut, refreshToken } = useAuthStore();
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    
-    try {
-      // Call backend logout API to revoke refresh token
-      if (refreshToken) {
-        await AuthService.logout(refreshToken);
-      }
-      
-      // Clear local auth state
-      logout();
-      
-      toast.success("Logged out successfully");
-      router.push("/auth/login");
-    } catch (error) {
-      // Even if backend logout fails, still clear local state
-      logout();
-      toast.info("Logged out locally");
-      router.push("/auth/login");
-    } finally {
-      setLoggingOut(false);
-    }
-  };
+  const { user } = useAuthStore();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 to-blue-50">
-      <nav className="bg-white shadow-md">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-violet-600">Welcome</h1>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
-        </div>
-      </nav>
+    <div className="p-6 lg:p-8">
+      {/* Welcome Section */}
+      <div className="mb-8">
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+          Welcome back, {user?.first_name}! 👋
+        </h1>
+        <p className="text-gray-500 mt-1">
+          Here&apos;s an overview of your Botmion workspace.
+        </p>
+      </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Hello, {user?.first_name} {user?.last_name}! 👋
-          </h2>
-          <p className="text-gray-600 mb-6">
-            You have successfully logged in to our platform.
-          </p>
-          <div className="space-y-4">
-            <div className="bg-violet-50 border border-violet-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-gray-700">
-                <strong>Email:</strong> {user?.email}
-              </p>
-              <p className="text-sm font-medium text-gray-700 mt-2">
-                <strong>Name:</strong> {user?.first_name} {user?.last_name}
-              </p>
-              {user?.id && (
-                <p className="text-sm font-medium text-gray-700 mt-2">
-                  <strong>User ID:</strong> {user.id}
-                </p>
-              )}
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        {quickLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={`p-5 rounded-xl border bg-white hover:shadow-md transition-shadow`}
+          >
+            <div
+              className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${link.color}`}
+            >
+              {link.icon}
             </div>
-            <p className="text-gray-600 text-sm">
-              This is a protected page that only authenticated users can access.
-            </p>
+            <h3 className="font-semibold text-gray-900">{link.label}</h3>
+            <p className="text-sm text-gray-500 mt-1">{link.description}</p>
+          </Link>
+        ))}
+      </div>
+
+      {/* User Info Card */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Account Information
+        </h2>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-500 w-20">
+              Email:
+            </span>
+            <span className="text-sm text-gray-900">{user?.email}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-500 w-20">
+              Name:
+            </span>
+            <span className="text-sm text-gray-900">
+              {user?.first_name} {user?.last_name}
+            </span>
           </div>
         </div>
       </div>
