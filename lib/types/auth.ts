@@ -1,4 +1,11 @@
 // User types
+export interface UserCompany {
+  id: number;
+  name: string;
+  slug: string;
+  logo_url?: string | null;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -6,6 +13,7 @@ export interface User {
   last_name?: string;
   user_type?: string;
   is_email_verified?: boolean;
+  company?: UserCompany | null;
 }
 
 // Auth tokens
