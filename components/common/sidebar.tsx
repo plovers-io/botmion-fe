@@ -18,6 +18,8 @@ import {
   Menu,
   X,
   User,
+  Building2,
+  Brain,
 } from "lucide-react";
 
 interface NavItem {
@@ -33,9 +35,19 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard size={20} />,
   },
   {
+    label: "Company",
+    href: "/company",
+    icon: <Building2 size={20} />,
+  },
+  {
     label: "Chatbots",
     href: "/chatbots",
     icon: <Bot size={20} />,
+  },
+  {
+    label: "Training Center",
+    href: "/training",
+    icon: <Brain size={20} />,
   },
   {
     label: "Conversations",
@@ -159,8 +171,8 @@ export function AppSidebar() {
         <div className="border-t border-gray-200 p-3 space-y-2">
           {/* User info */}
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center">
-              <User size={16} className="text-violet-600" />
+            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <User size={16} className="text-gray-600" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
