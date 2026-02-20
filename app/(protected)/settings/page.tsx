@@ -1,10 +1,74 @@
 "use client";
 
+import { useState } from "react";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
-import { Settings, User, Lock } from "lucide-react";
+import { userService } from "@/lib/services/user-service";
+import { AuthService } from "@/lib/services/auth-service";
+import { toast } from "react-toastify";
+import { Settings, User, Lock, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
+
+  // Profile form state
+  const [firstName, setFirstName] = useState(user?.first_name || "");
+  const [lastName, setLastName] = useState(user?.last_name || "");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Password form state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  const handleSaveProfile = async () => {
+    if (!user?.id) return;
+
+    setSavingProfile(true);
+    try {
+      const response = await userService.updateUser(user.id, {
+        first_name: firstName,
+        last_name: lastName,
+      });
+      setUser({ ...user, first_name: firstName, last_name: lastName });
+      toast.success("Profile updated successfully!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword || !currentPassword) {
+      toast.error("Please fill in all password fields");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      await AuthService.changePassword({
+        old_password: currentPassword,
+        new_password: newPassword,
+      });
+      toast.success("Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to update password");
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
@@ -33,7 +97,8 @@ export default function SettingsPage() {
               </label>
               <input
                 type="text"
-                defaultValue={user?.first_name || ""}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
                 placeholder="First name"
               />
@@ -44,7 +109,8 @@ export default function SettingsPage() {
               </label>
               <input
                 type="text"
-                defaultValue={user?.last_name || ""}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
                 placeholder="Last name"
               />
@@ -61,8 +127,19 @@ export default function SettingsPage() {
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500"
             />
           </div>
-          <button className="px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors cursor-pointer">
-            Save Changes
+          <button
+            onClick={handleSaveProfile}
+            disabled={savingProfile}
+            className="px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {savingProfile ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="animate-spin" size={14} />
+                Saving...
+              </span>
+            ) : (
+              "Save Changes"
+            )}
           </button>
         </div>
       </div>
@@ -83,6 +160,8 @@ export default function SettingsPage() {
             </label>
             <input
               type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
               placeholder="Enter current password"
             />
@@ -93,6 +172,8 @@ export default function SettingsPage() {
             </label>
             <input
               type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
               placeholder="Enter new password"
             />
@@ -103,12 +184,25 @@ export default function SettingsPage() {
             </label>
             <input
               type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
               placeholder="Confirm new password"
             />
           </div>
-          <button className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
-            Update Password
+          <button
+            onClick={handleUpdatePassword}
+            disabled={updatingPassword}
+            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {updatingPassword ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="animate-spin" size={14} />
+                Updating...
+              </span>
+            ) : (
+              "Update Password"
+            )}
           </button>
         </div>
       </div>

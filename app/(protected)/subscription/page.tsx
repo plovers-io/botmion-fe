@@ -76,6 +76,13 @@ const featureComparisons: FeatureComparison[] = [
   },
 ];
 
+// Helper function to determine if switching to a new plan is an upgrade
+const PLAN_HIERARCHY: Record<string, number> = { basic: 1, pro: 2, enterprise: 3 };
+
+function isUpgrade(currentSlug: string, newSlug: string): boolean {
+  return (PLAN_HIERARCHY[newSlug] ?? 0) > (PLAN_HIERARCHY[currentSlug] ?? 0);
+}
+
 export default function SubscriptionPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
@@ -147,23 +154,25 @@ export default function SubscriptionPage() {
   };
 
   const getStatusBadge = (status: string) => {
-    const styles = {
+    const styles: Record<string, string> = {
       active: "bg-green-100 text-green-700 border border-green-200",
       trial: "bg-blue-100 text-blue-700 border border-blue-200",
       past_due: "bg-yellow-100 text-yellow-700 border border-yellow-200",
       canceled: "bg-red-100 text-red-700 border border-red-200",
     };
     
-    const icons = {
+    const icons: Record<string, React.ReactNode> = {
       active: <Check size={12} />,
       trial: <Sparkles size={12} />,
       past_due: <AlertCircle size={12} />,
       canceled: <X size={12} />,
     };
 
+    const defaultStyle = "bg-gray-100 text-gray-700 border border-gray-200";
+
     return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${styles[status as keyof typeof styles]}`}>
-        {icons[status as keyof typeof icons]}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${styles[status] ?? defaultStyle}`}>
+        {icons[status] ?? null}
         {status === "past_due" ? "Past Due" : status.toUpperCase()}
       </span>
     );
@@ -570,12 +579,17 @@ export default function SubscriptionPage() {
                           </div>
                         </td>
                         {plans.map((plan) => {
-                          const planSlug = plan.slug as keyof typeof feature;
-                          const hasFeature = feature[planSlug];
+                          const hasFeature = plan.slug in feature
+                            ? feature[plan.slug as keyof typeof feature]
+                            : undefined;
                           
                           return (
                             <td key={plan.id} className="py-4 px-6 text-center">
-                              {typeof hasFeature === "boolean" ? (
+                              {hasFeature === undefined ? (
+                                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
+                                  <X size={14} className="text-gray-400" />
+                                </div>
+                              ) : typeof hasFeature === "boolean" ? (
                                 hasFeature ? (
                                   <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center mx-auto">
                                     <Check size={14} className="text-white" />
@@ -649,10 +663,4 @@ export default function SubscriptionPage() {
       />
     </div>
   );
-}
-
-// Helper function to determine if switching to a new plan is an upgrade
-function isUpgrade(currentSlug: string, newSlug: string): boolean {
-  const planHierarchy = { basic: 1, pro: 2, enterprise: 3 };
-  return planHierarchy[newSlug as keyof typeof planHierarchy] > planHierarchy[currentSlug as keyof typeof planHierarchy];
 }
