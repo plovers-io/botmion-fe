@@ -43,7 +43,7 @@ const HomePage = () => {
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
-          Welcome back, {user?.first_name}! 👋
+          Welcome back, {user?.first_name || 'User'}! 👋
         </h1>
         <p className="text-gray-500 mt-1">
           Here&apos;s an overview of your Botmion workspace.
