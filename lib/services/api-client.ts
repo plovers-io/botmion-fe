@@ -125,8 +125,13 @@ class ApiClient {
 
         const apiError: ApiError = {
           status: error.response?.status || 500,
-          message: error.message || "An error occurred",
+          message:
+            (error.response?.data as any)?.detail ||
+            (error.response?.data as any)?.message ||
+            error.message ||
+            "An error occurred",
           code: error.code,
+          detail: (error.response?.data as any)?.detail,
         };
         return Promise.reject(apiError);
       },

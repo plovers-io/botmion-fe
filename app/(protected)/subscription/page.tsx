@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { SubscriptionService } from "@/lib/services/subscription-service";
 import { Plan, Subscription, BillingCycle, FeatureComparison } from "@/lib/types/subscription";
 import { toast } from "react-toastify";
+import { ConfirmModal } from "@/components/common";
 import {
   Check,
   CreditCard,
@@ -20,6 +21,7 @@ import {
   ArrowDownCircle,
   Info,
   X,
+  ChevronDown,
 } from "lucide-react";
 
 // Feature comparison data for the UI
@@ -82,6 +84,8 @@ export default function SubscriptionPage() {
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [canceling, setCanceling] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showCurrentPlan, setShowCurrentPlan] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -111,12 +115,12 @@ export default function SubscriptionPage() {
   const handleSubscribe = async (planSlug: string) => {
     setSubscribing(planSlug);
     try {
-      const response = await SubscriptionService.subscribe({
+      const subscription = await SubscriptionService.subscribe({
         plan_slug: planSlug,
         billing_cycle: billingCycle,
       });
-      setCurrentSubscription(response.subscription);
-      toast.success(response.message || "Subscribed successfully!");
+      setCurrentSubscription(subscription);
+      toast.success("Subscribed successfully!");
     } catch (error: any) {
       toast.error(error?.message || "Failed to subscribe");
     } finally {
@@ -124,14 +128,17 @@ export default function SubscriptionPage() {
     }
   };
 
-  const handleCancel = async () => {
-    if (!confirm("Are you sure you want to cancel your subscription?")) return;
+  const handleCancelClick = () => {
+    setShowCancelModal(true);
+  };
 
+  const handleCancelConfirm = async () => {
     setCanceling(true);
     try {
-      await SubscriptionService.cancelSubscription();
-      await loadData(); // Reload to get updated subscription
-      toast.success("Subscription canceled");
+      const subscription = await SubscriptionService.cancelSubscription();
+      setCurrentSubscription(subscription);
+      setShowCancelModal(false);
+      toast.success("Subscription canceled successfully");
     } catch (error: any) {
       toast.error(error?.message || "Failed to cancel subscription");
     } finally {
@@ -172,10 +179,27 @@ export default function SubscriptionPage() {
   };
 
   const calculateSavings = (monthlyPrice: string, yearlyPrice: string) => {
-    const monthly = parseFloat(monthlyPrice) * 12;
-    const yearly = parseFloat(yearlyPrice);
-    const savings = ((monthly - yearly) / monthly) * 100;
+    if (!monthlyPrice || !yearlyPrice) return 0;
+    const monthlyVal = parseFloat(monthlyPrice);
+    const yearlyVal = parseFloat(yearlyPrice);
+    if (isNaN(monthlyVal) || isNaN(yearlyVal) || monthlyVal <= 0) return 0;
+    const annualFromMonthly = monthlyVal * 12;
+    if (annualFromMonthly <= yearlyVal) return 0;
+    const savings = ((annualFromMonthly - yearlyVal) / annualFromMonthly) * 100;
     return Math.round(savings);
+  };
+
+  const getOverallMaxSavings = () => {
+    let maxSavings = 0;
+    for (const plan of plans) {
+      const saving = calculateSavings(plan.price_monthly, plan.price_yearly);
+      if (saving > maxSavings) maxSavings = saving;
+    }
+    return maxSavings;
+  };
+
+  const capitalizeName = (name: string) => {
+    return name.charAt(0).toUpperCase() + name.slice(1);
   };
 
   if (loading) {
@@ -208,88 +232,98 @@ export default function SubscriptionPage() {
 
       {/* Current Subscription Card */}
       {currentSubscription && (
-        <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-2xl p-8 mb-12 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-500/10 to-purple-500/10 rounded-full -translate-y-16 translate-x-16"></div>
-          
-          <div className="grid md:grid-cols-2 gap-8 relative">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                {getPlanIcon(currentSubscription.plan.slug)}
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {currentSubscription.plan.name} Plan
-                  </h2>
-                  <div className="flex items-center gap-3 mt-1">
-                    {getStatusBadge(currentSubscription.status)}
-                    <span className="text-sm text-gray-600 capitalize">
-                      {currentSubscription.billing_cycle} billing
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-white/70 rounded-lg p-3">
-                  <div className="text-xs text-gray-500 font-medium">Started</div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    {new Date(currentSubscription.start_date).toLocaleDateString()}
-                  </div>
-                </div>
-                {currentSubscription.end_date && (
-                  <div className="bg-white/70 rounded-lg p-3">
-                    <div className="text-xs text-gray-500 font-medium">Ends</div>
-                    <div className="text-sm font-semibold text-gray-900">
-                      {new Date(currentSubscription.end_date).toLocaleDateString()}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-6">
-                {currentSubscription.plan.features.map((feature) => (
-                  <span
-                    key={feature.id}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-violet-100 text-violet-700 text-xs font-medium rounded-full"
-                  >
-                    <Check size={10} />
-                    {feature.name}
+        <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-2xl mb-8 relative overflow-hidden">
+          <button
+            onClick={() => setShowCurrentPlan(!showCurrentPlan)}
+            className="w-full p-6 flex items-center justify-between hover:bg-violet-100/50 transition-colors cursor-pointer rounded-2xl"
+          >
+            <div className="flex items-center gap-4">
+              {getPlanIcon(currentSubscription.plan.slug)}
+              <div className="text-left">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {capitalizeName(currentSubscription.plan.name)} Plan
+                </h2>
+                <div className="flex items-center gap-3 mt-1">
+                  {getStatusBadge(currentSubscription.status)}
+                  <span className="text-sm text-gray-600 capitalize">
+                    {currentSubscription.billing_cycle} billing
                   </span>
-                ))}
+                </div>
               </div>
             </div>
-
-            <div className="flex flex-col justify-between">
-              <div className="space-y-3">
-                {currentSubscription.plan.quotas.map((quota) => (
-                  <div key={quota.id} className="flex items-center justify-between bg-white/70 rounded-lg p-3">
-                    <span className="text-sm font-medium text-gray-700 capitalize">
-                      {quota.feature_code.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-sm font-bold text-gray-900">
-                      {quota.limit === 0 ? "Unlimited" : quota.limit}
-                    </span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                {showCurrentPlan ? "Hide Details" : "Show Details"}
+              </span>
+              <ChevronDown
+                className={`w-5 h-5 text-gray-600 transition-transform ${showCurrentPlan ? "rotate-180" : ""}`}
+              />
+            </div>
+          </button>
+          
+          {showCurrentPlan && (
+            <div className="px-6 pb-6">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-500/10 to-purple-500/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="grid md:grid-cols-2 gap-8 relative">
+                <div>
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div className="bg-white/70 rounded-lg p-3">
+                      <div className="text-xs text-gray-500 font-medium">Started</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {new Date(currentSubscription.start_date).toLocaleDateString()}
+                      </div>
+                    </div>
+                    {currentSubscription.end_date && (
+                      <div className="bg-white/70 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 font-medium">Ends</div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {new Date(currentSubscription.end_date).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-              
-              {currentSubscription.status !== "canceled" && (
-                <button
-                  onClick={handleCancel}
-                  disabled={canceling}
-                  className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                >
-                  {canceling ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <>
+
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {currentSubscription.plan.features.map((feature) => (
+                      <span
+                        key={feature.id}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-violet-100 text-violet-700 text-xs font-medium rounded-full"
+                      >
+                        <Check size={10} />
+                        {feature.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col justify-between">
+                  <div className="space-y-3">
+                    {currentSubscription.plan.quotas.map((quota) => (
+                      <div key={quota.id} className="flex items-center justify-between bg-white/70 rounded-lg p-3">
+                        <span className="text-sm font-medium text-gray-700 capitalize">
+                          {quota.feature_code.replace(/_/g, " ")}
+                        </span>
+                        <span className="text-sm font-bold text-gray-900">
+                          {quota.limit === 0 ? "Unlimited" : quota.limit}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {currentSubscription.status !== "canceled" && (
+                    <button
+                      onClick={handleCancelClick}
+                      disabled={canceling}
+                      className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
                       <X size={16} />
                       Cancel Subscription
-                    </>
+                    </button>
                   )}
-                </button>
-              )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -298,7 +332,7 @@ export default function SubscriptionPage() {
         <div className="bg-gray-100 rounded-xl p-1 flex items-center">
           <button
             onClick={() => setBillingCycle("monthly")}
-            className={`px-6 py-3 text-sm font-semibold rounded-lg transition-all ${
+            className={`px-6 py-3 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
               billingCycle === "monthly"
                 ? "bg-white text-gray-900 shadow-sm"
                 : "text-gray-500 hover:text-gray-700"
@@ -308,7 +342,7 @@ export default function SubscriptionPage() {
           </button>
           <button
             onClick={() => setBillingCycle("yearly")}
-            className={`px-6 py-3 text-sm font-semibold rounded-lg transition-all ${
+            className={`px-6 py-3 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
               billingCycle === "yearly"
                 ? "bg-white text-gray-900 shadow-sm"
                 : "text-gray-500 hover:text-gray-700"
@@ -316,9 +350,11 @@ export default function SubscriptionPage() {
           >
             <span className="flex items-center gap-2">
               Yearly
-              <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
-                Save {plans[0] ? calculateSavings(plans[0].price_monthly, plans[0].price_yearly) : "17"}%
-              </span>
+              {getOverallMaxSavings() > 0 && (
+                <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  Save {getOverallMaxSavings()}%
+                </span>
+              )}
             </span>
           </button>
         </div>
@@ -355,28 +391,35 @@ export default function SubscriptionPage() {
                         : "border-gray-200 hover:border-gray-300 shadow-lg"
                   }`}
                 >
-                  {isPopular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg">
+                  {isCurrentPlan && isPopular ? (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
+                        ✓ Current Plan
+                      </div>
+                      <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
                         🚀 Most Popular
                       </div>
                     </div>
-                  )}
-
-                  {isCurrentPlan && (
+                  ) : isCurrentPlan ? (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                       <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg">
                         ✓ Current Plan
                       </div>
                     </div>
-                  )}
+                  ) : isPopular ? (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                      <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg">
+                        🚀 Most Popular
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="text-center mb-8">
                     <div className="mb-4">
                       {getPlanIcon(plan.slug)}
                     </div>
                     <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                      {plan.name}
+                      {capitalizeName(plan.name)}
                     </h3>
                     <div className="mb-4">
                       <span className="text-5xl font-bold text-gray-900">
@@ -418,7 +461,7 @@ export default function SubscriptionPage() {
                           <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0">
                             <Users size={10} className="text-blue-600" />
                           </div>
-                          <span className="text-sm font-medium text-gray-900">
+                          <span className="text-sm font-medium text-gray-900 capitalize">
                             {quota.limit === 0 ? "Unlimited" : quota.limit}{" "}
                             {quota.feature_code.replace(/_/g, " ")}
                           </span>
@@ -437,7 +480,7 @@ export default function SubscriptionPage() {
                       <button
                         onClick={() => handleSubscribe(plan.slug)}
                         disabled={subscribing === plan.slug}
-                        className={`w-full py-4 text-sm font-bold rounded-xl transition-all transform disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 ${
+                        className={`w-full py-4 text-sm font-bold rounded-xl transition-all transform disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 cursor-pointer ${
                           isPopular
                             ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg hover:shadow-xl"
                             : isEnterprise
@@ -456,10 +499,10 @@ export default function SubscriptionPage() {
                                 ) : (
                                   <ArrowDownCircle className="inline mr-2" size={16} />
                                 )}
-                                {isUpgrade(currentSubscription.plan.slug, plan.slug) ? "Upgrade" : "Switch"} to {plan.name}
+                                {isUpgrade(currentSubscription.plan.slug, plan.slug) ? "Upgrade" : "Switch"} to {capitalizeName(plan.name)}
                               </>
                             ) : (
-                              <>Get Started with {plan.name}</>
+                              <>Get Started with {capitalizeName(plan.name)}</>
                             )}
                           </>
                         )}
@@ -475,7 +518,7 @@ export default function SubscriptionPage() {
           <div className="text-center mb-8">
             <button
               onClick={() => setShowComparison(!showComparison)}
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-violet-600 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-violet-600 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer"
             >
               <Info size={16} />
               {showComparison ? "Hide" : "Show"} Detailed Comparison
@@ -590,6 +633,20 @@ export default function SubscriptionPage() {
           </div>
         </div>
       </div>
+
+      {/* Cancel Subscription Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={handleCancelConfirm}
+        title="Cancel Subscription"
+        description="Are you sure you want to cancel your subscription? You will lose access to all premium features at the end of your current billing cycle."
+        confirmText="Yes, Cancel"
+        cancelText="Keep Subscription"
+        confirmVariant="danger"
+        isLoading={canceling}
+        icon={<AlertCircle size={28} className="text-red-500" />}
+      />
     </div>
   );
 }
