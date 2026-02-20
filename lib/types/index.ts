@@ -20,6 +20,15 @@ export type {
 // Form types
 export type { AuthFormProps } from "./form";
 
+// Chatbot types
+export type {
+  Chatbot,
+  BotType,
+  BotStatus,
+  ChatbotCreateRequest,
+  ChatbotUpdateRequest,
+} from "./chatbot";
+
 // Pagination
 export interface PaginatedResponse<T> {
   items: T[];
@@ -34,6 +43,7 @@ export interface ApiError {
   status: number;
   message: string;
   code?: string;
+  detail?: string;
 }
 
 // Async request state
