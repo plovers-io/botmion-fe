@@ -4,6 +4,7 @@ import {
   KnowledgeSourceCreateRequest,
   Document,
   DocumentCreateRequest,
+  DocumentDetail,
   ChunkingRequest,
   ChunkingResponse,
 } from "@/lib/types/training";
@@ -76,12 +77,24 @@ export class TrainingService {
   // ─── Documents ──────────────────────────────────────────────────────
 
   /**
-   * List all documents
-   * GET /bots/v1/documents/
+   * List all documents (optionally filtered by source_id)
+   * GET /bots/v1/documents/?source_id=<id>
    */
-  static async getDocuments(): Promise<Document[]> {
+  static async getDocuments(sourceId?: number): Promise<Document[]> {
+    const params = sourceId ? `?source_id=${sourceId}` : "";
     const response = await apiClient.get<Document[]>(
-      `${BOTS_BASE}/v1/documents/`
+      `${BOTS_BASE}/v1/documents/${params}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get a single document with its chunks count
+   * GET /bots/v1/documents/:id/
+   */
+  static async getDocument(id: number): Promise<DocumentDetail> {
+    const response = await apiClient.get<DocumentDetail>(
+      `${BOTS_BASE}/v1/documents/${id}/`
     );
     return response.data;
   }
@@ -107,6 +120,14 @@ export class TrainingService {
     return response.data;
   }
 
+  /**
+   * Delete a document
+   * DELETE /bots/v1/documents/:id/
+   */
+  static async deleteDocument(id: number): Promise<void> {
+    await apiClient.delete(`${BOTS_BASE}/v1/documents/${id}/`);
+  }
+
   // ─── Chunking & Training ───────────────────────────────────────────
 
   /**
@@ -124,3 +145,4 @@ export class TrainingService {
     return response.data;
   }
 }
+

@@ -1,5 +1,5 @@
 export { Notification, NotificationContainer } from "./notification";
-export { Sidebar } from "./sidebar";
+export { AppSidebar } from './sidebar'
 export { Modal, ConfirmModal } from "./modal";
 export type { ModalProps, ConfirmModalProps } from "./modal";
 
