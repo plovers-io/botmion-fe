@@ -2,6 +2,8 @@
 
 import React, { ReactNode } from "react";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 /**
  * React Query Provider
@@ -22,6 +24,20 @@ const queryClient = new QueryClient({
 
 export function ReactQueryProvider({ children }: { children: ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      {children}
+    </QueryClientProvider>
   );
 }

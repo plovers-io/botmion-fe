@@ -8,6 +8,27 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Auth types
+export type { User, AuthStore } from "./auth";
+
+// Layout types
+export type {
+  ProtectedLayoutProps,
+  ProtectedLayoutWrapperProps,
+} from "./layout";
+
+// Form types
+export type { AuthFormProps } from "./form";
+
+// Chatbot types
+export type {
+  Chatbot,
+  BotType,
+  BotStatus,
+  ChatbotCreateRequest,
+  ChatbotUpdateRequest,
+} from "./chatbot";
+
 // Pagination
 export interface PaginatedResponse<T> {
   items: T[];
@@ -17,21 +38,12 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
-// User types (example)
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 // Request error handling
 export interface ApiError {
   status: number;
   message: string;
   code?: string;
+  detail?: string;
 }
 
 // Async request state

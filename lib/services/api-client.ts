@@ -1,11 +1,30 @@
-import axios, { AxiosInstance, AxiosError } from "axios";
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "axios";
 import { ApiError } from "@/lib/types";
+import { AuthService } from "./auth-service";
+import { useAuthStore } from "@/lib/store/auth-store-v2";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/user";
+
+/**
+ * Helper to read tokens from the zustand persisted store.
+ * This avoids direct localStorage access and keeps tokens in a single source of truth.
+ */
+function getTokensFromStore() {
+  const state = useAuthStore.getState();
+  return {
+    accessToken: state.accessToken,
+    refreshToken: state.refreshToken,
+  };
+}
 
 class ApiClient {
   private axiosInstance: AxiosInstance;
+  private isRefreshing = false;
+  private failedQueue: Array<{
+    resolve: (value?: unknown) => void;
+    reject: (reason?: unknown) => void;
+  }> = [];
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -19,31 +38,116 @@ class ApiClient {
     // Request interceptor
     this.axiosInstance.interceptors.request.use(
       (config) => {
-        // Add auth token if available
-        const token =
-          typeof window !== "undefined"
-            ? localStorage.getItem("authToken")
-            : null;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+        // Read token from zustand store (single source of truth)
+        const { accessToken } = getTokensFromStore();
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
         }
         return config;
       },
       (error) => Promise.reject(error),
     );
 
-    // Response interceptor
+    // Response interceptor with token refresh logic
     this.axiosInstance.interceptors.response.use(
       (response) => response,
-      (error: AxiosError) => {
+      async (error: AxiosError) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & {
+          _retry?: boolean;
+        };
+
+        // If error is 401 and we haven't retried yet
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          if (this.isRefreshing) {
+            // Wait for the refresh to complete
+            return new Promise((resolve, reject) => {
+              this.failedQueue.push({ resolve, reject });
+            })
+              .then(() => {
+                originalRequest._retry = true;
+                return this.axiosInstance(originalRequest);
+              })
+              .catch((err) => {
+                return Promise.reject(err);
+              });
+          }
+
+          originalRequest._retry = true;
+          this.isRefreshing = true;
+
+          const { refreshToken } = getTokensFromStore();
+
+          if (!refreshToken) {
+            this.isRefreshing = false;
+            // Clear auth state and redirect to login
+            useAuthStore.getState().clearAuth();
+            if (typeof window !== "undefined") {
+              window.location.href = "/auth/login";
+            }
+            return Promise.reject(error);
+          }
+
+          try {
+            const response = await AuthService.refreshToken(refreshToken);
+            
+            // Update tokens in zustand store
+            useAuthStore.getState().setTokens({
+              access_token: response.access_token,
+              refresh_token: response.refresh_token,
+            });
+
+            // Update authorization header
+            this.axiosInstance.defaults.headers.common["Authorization"] =
+              `Bearer ${response.access_token}`;
+            originalRequest.headers = originalRequest.headers ?? {};
+            originalRequest.headers.Authorization = `Bearer ${response.access_token}`;
+
+            // Process the failed queue
+            this.processQueue(null);
+
+            this.isRefreshing = false;
+
+            // Retry the original request
+            return this.axiosInstance(originalRequest);
+          } catch (refreshError) {
+            this.processQueue(refreshError);
+            this.isRefreshing = false;
+
+            // Clear auth state and redirect to login
+            useAuthStore.getState().clearAuth();
+            if (typeof window !== "undefined") {
+              window.location.href = "/auth/login";
+            }
+
+            return Promise.reject(refreshError);
+          }
+        }
+
         const apiError: ApiError = {
           status: error.response?.status || 500,
-          message: error.message || "An error occurred",
+          message:
+            (error.response?.data as any)?.detail ||
+            (error.response?.data as any)?.message ||
+            error.message ||
+            "An error occurred",
           code: error.code,
+          detail: (error.response?.data as any)?.detail,
         };
         return Promise.reject(apiError);
       },
     );
+  }
+
+  private processQueue(error: unknown) {
+    this.failedQueue.forEach((prom) => {
+      if (error) {
+        prom.reject(error);
+      } else {
+        prom.resolve();
+      }
+    });
+
+    this.failedQueue = [];
   }
 
   getInstance(): AxiosInstance {
@@ -51,4 +155,4 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient();
+export const apiClient = new ApiClient().getInstance();
