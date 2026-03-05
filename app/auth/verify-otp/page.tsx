@@ -4,10 +4,11 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Loader, CheckCircle } from "lucide-react";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import { AuthService } from "@/lib/services/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 function OTPVerificationContent() {
   const router = useRouter();
@@ -73,12 +74,12 @@ function OTPVerificationContent() {
     const otpCode = otp.join("");
     
     if (otpCode.length !== 6) {
-      toast.error("Please enter the complete 6-digit OTP");
+      toast.error("Validation Error", { description: "Please enter the complete 6-digit OTP" });
       return;
     }
 
     if (!email) {
-      toast.error("Email not found. Please try again.");
+      toast.error("Error", { description: "Email not found. Please try again." });
       return;
     }
 
@@ -92,7 +93,7 @@ function OTPVerificationContent() {
       });
 
       if (response.verified) {
-        toast.success(response.message);
+        toast.success("Verified", { description: response.message });
 
         if (purpose === "register") {
           // Redirect to login after successful registration verification
@@ -106,7 +107,7 @@ function OTPVerificationContent() {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "OTP verification failed";
-      toast.error(errorMessage);
+      toast.error("Verification Failed", { description: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ function OTPVerificationContent() {
 
   const handleResendOTP = async () => {
     if (!email) {
-      toast.error("Email not found. Please try again.");
+      toast.error("Error", { description: "Email not found. Please try again." });
       return;
     }
 
@@ -126,30 +127,30 @@ function OTPVerificationContent() {
         purpose,
       });
       
-      toast.success("OTP has been resent to your email");
+      toast.success("OTP Resent", { description: "A new code has been sent to your email" });
       setOtp(["", "", "", "", "", ""]); // Clear OTP inputs
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to resend OTP";
-      toast.error(errorMessage);
+      toast.error("Resend Failed", { description: errorMessage });
     } finally {
       setResending(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 p-4">
-      <Card className="w-full max-w-md p-8 shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4">
+      <Card className="w-full max-w-md p-8 shadow-2xl border-gray-100/50 dark:border-gray-700/50">
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-            <Mail className="text-purple-600" size={32} />
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/25">
+            <Mail className="text-white" size={28} />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Verify Your Email
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-500 dark:text-gray-400">
             We've sent a 6-digit code to
           </p>
-          <p className="text-purple-600 font-semibold mt-1">
+          <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
             {email}
           </p>
         </div>
@@ -157,9 +158,9 @@ function OTPVerificationContent() {
         <form onSubmit={handleVerify} className="space-y-6">
           {/* OTP Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3 text-center">
+            <Label className="mb-3 text-center">
               Enter Verification Code
-            </label>
+            </Label>
             <div className="flex gap-2 justify-center">
               {otp.map((digit, index) => (
                 <input
@@ -172,7 +173,7 @@ function OTPVerificationContent() {
                   onChange={(e) => handleOtpChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
-                  className="w-12 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                  className="w-12 h-14 text-center text-2xl font-bold border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   disabled={loading}
                 />
               ))}
@@ -183,7 +184,7 @@ function OTPVerificationContent() {
           <Button
             type="submit"
             disabled={loading || otp.join("").length !== 6}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -200,14 +201,14 @@ function OTPVerificationContent() {
 
           {/* Resend OTP */}
           <div className="text-center">
-            <p className="text-gray-600 text-sm mb-2">
+            <p className="text-gray-400 text-sm mb-2">
               Didn't receive the code?
             </p>
             <button
               type="button"
               onClick={handleResendOTP}
               disabled={resending || loading}
-              className="text-purple-600 hover:text-purple-700 font-semibold text-sm disabled:opacity-50"
+              className="text-emerald-600 hover:text-emerald-700 font-semibold text-sm disabled:opacity-50"
             >
               {resending ? "Sending..." : "Resend Code"}
             </button>

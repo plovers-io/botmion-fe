@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { SubscriptionService } from "@/lib/services/subscription-service";
 import { Plan, Subscription, BillingCycle, FeatureComparison } from "@/lib/types/subscription";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import { ConfirmModal } from "@/components/common";
+import { Button } from "@/components/ui/button";
 import {
   Check,
   CreditCard,
@@ -127,9 +128,9 @@ export default function SubscriptionPage() {
         billing_cycle: billingCycle,
       });
       setCurrentSubscription(subscription);
-      toast.success("Subscribed successfully!");
+      toast.success("Subscribed", { description: "Your subscription is now active" });
     } catch (error: any) {
-      toast.error(error?.message || "Failed to subscribe");
+      toast.error("Subscription Failed", { description: error?.message || "Failed to subscribe" });
     } finally {
       setSubscribing(null);
     }
@@ -145,9 +146,9 @@ export default function SubscriptionPage() {
       const subscription = await SubscriptionService.cancelSubscription();
       setCurrentSubscription(subscription);
       setShowCancelModal(false);
-      toast.success("Subscription canceled successfully");
+      toast.success("Subscription Canceled", { description: "Your subscription has been canceled" });
     } catch (error: any) {
-      toast.error(error?.message || "Failed to cancel subscription");
+      toast.error("Cancellation Failed", { description: error?.message || "Failed to cancel subscription" });
     } finally {
       setCanceling(false);
     }
@@ -155,10 +156,10 @@ export default function SubscriptionPage() {
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      active: "bg-green-100 text-green-700 border border-green-200",
-      trial: "bg-blue-100 text-blue-700 border border-blue-200",
-      past_due: "bg-yellow-100 text-yellow-700 border border-yellow-200",
-      canceled: "bg-red-100 text-red-700 border border-red-200",
+      active: "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700",
+      trial: "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700",
+      past_due: "bg-yellow-100 text-yellow-700 border border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-700",
+      canceled: "bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-700",
     };
     
     const icons: Record<string, React.ReactNode> = {
@@ -168,7 +169,7 @@ export default function SubscriptionPage() {
       canceled: <X size={12} />,
     };
 
-    const defaultStyle = "bg-gray-100 text-gray-700 border border-gray-200";
+    const defaultStyle = "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600";
 
     return (
       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${styles[status] ?? defaultStyle}`}>
@@ -181,7 +182,7 @@ export default function SubscriptionPage() {
   const getPlanIcon = (slug: string) => {
     switch(slug) {
       case "basic": return <Zap className="text-blue-500" size={24} />;
-      case "pro": return <Star className="text-violet-500" size={24} />;
+      case "pro": return <Star className="text-emerald-500" size={24} />;
       case "enterprise": return <Crown className="text-yellow-500" size={24} />;
       default: return <Shield className="text-gray-500" size={24} />;
     }
@@ -215,8 +216,10 @@ export default function SubscriptionPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="animate-spin text-violet-600 mx-auto mb-4" size={40} />
-          <p className="text-gray-500">Loading subscription details...</p>
+          <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/50 dark:to-teal-900/50 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
+            <Loader2 className="animate-spin text-emerald-600" size={28} />
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Loading subscription details...</p>
         </div>
       </div>
     );
@@ -227,65 +230,66 @@ export default function SubscriptionPage() {
       {/* Header */}
       <div className="text-center mb-12">
         <div className="inline-flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/25">
             <CreditCard className="text-white" size={24} />
           </div>
-          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900">
+          <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-gray-100">
             Subscription Plans
           </h1>
         </div>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+        <p className="text-lg text-gray-500 dark:text-gray-400 max-w-2xl mx-auto">
           Choose the perfect plan for your AI chatbot needs. Upgrade or downgrade anytime.
         </p>
       </div>
 
       {/* Current Subscription Card */}
       {currentSubscription && (
-        <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-2xl mb-8 relative overflow-hidden">
-          <button
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-200/60 dark:border-emerald-700/40 rounded-2xl mb-8 relative overflow-hidden shadow-sm">
+          <Button
+            variant="ghost"
             onClick={() => setShowCurrentPlan(!showCurrentPlan)}
-            className="w-full p-6 flex items-center justify-between hover:bg-violet-100/50 transition-colors cursor-pointer rounded-2xl"
+            className="w-full p-6 h-auto flex items-center justify-between hover:bg-emerald-100/50 rounded-2xl"
           >
             <div className="flex items-center gap-4">
               {getPlanIcon(currentSubscription.plan.slug)}
               <div className="text-left">
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {capitalizeName(currentSubscription.plan.name)} Plan
                 </h2>
                 <div className="flex items-center gap-3 mt-1">
                   {getStatusBadge(currentSubscription.status)}
-                  <span className="text-sm text-gray-600 capitalize">
+                  <span className="text-sm text-gray-600 dark:text-gray-300 capitalize">
                     {currentSubscription.billing_cycle} billing
                   </span>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-300">
                 {showCurrentPlan ? "Hide Details" : "Show Details"}
               </span>
               <ChevronDown
-                className={`w-5 h-5 text-gray-600 transition-transform ${showCurrentPlan ? "rotate-180" : ""}`}
+                className={`w-5 h-5 text-gray-600 dark:text-gray-300 transition-transform ${showCurrentPlan ? "rotate-180" : ""}`}
               />
             </div>
-          </button>
+          </Button>
           
           {showCurrentPlan && (
             <div className="px-6 pb-6">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-violet-500/10 to-purple-500/10 rounded-full -translate-y-16 translate-x-16"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full -translate-y-16 translate-x-16"></div>
               <div className="grid md:grid-cols-2 gap-8 relative">
                 <div>
                   <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-white/70 rounded-lg p-3">
-                      <div className="text-xs text-gray-500 font-medium">Started</div>
-                      <div className="text-sm font-semibold text-gray-900">
+                    <div className="bg-white/70 dark:bg-white/10 rounded-lg p-3">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">Started</div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {new Date(currentSubscription.start_date).toLocaleDateString()}
                       </div>
                     </div>
                     {currentSubscription.end_date && (
-                      <div className="bg-white/70 rounded-lg p-3">
-                        <div className="text-xs text-gray-500 font-medium">Ends</div>
-                        <div className="text-sm font-semibold text-gray-900">
+                      <div className="bg-white/70 dark:bg-white/10 rounded-lg p-3">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">Ends</div>
+                        <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                           {new Date(currentSubscription.end_date).toLocaleDateString()}
                         </div>
                       </div>
@@ -296,7 +300,7 @@ export default function SubscriptionPage() {
                     {currentSubscription.plan.features.map((feature) => (
                       <span
                         key={feature.id}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-violet-100 text-violet-700 text-xs font-medium rounded-full"
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-xs font-medium rounded-full"
                       >
                         <Check size={10} />
                         {feature.name}
@@ -308,11 +312,11 @@ export default function SubscriptionPage() {
                 <div className="flex flex-col justify-between">
                   <div className="space-y-3">
                     {currentSubscription.plan.quotas.map((quota) => (
-                      <div key={quota.id} className="flex items-center justify-between bg-white/70 rounded-lg p-3">
-                        <span className="text-sm font-medium text-gray-700 capitalize">
+                      <div key={quota.id} className="flex items-center justify-between bg-white/70 dark:bg-white/10 rounded-lg p-3">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
                           {quota.feature_code.replace(/_/g, " ")}
                         </span>
-                        <span className="text-sm font-bold text-gray-900">
+                        <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
                           {quota.limit === 0 ? "Unlimited" : quota.limit}
                         </span>
                       </div>
@@ -320,14 +324,15 @@ export default function SubscriptionPage() {
                   </div>
                   
                   {currentSubscription.status !== "canceled" && (
-                    <button
+                    <Button
                       onClick={handleCancelClick}
                       disabled={canceling}
-                      className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                      variant="outline"
+                      className="mt-6 w-full text-red-600 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950/50"
                     >
                       <X size={16} />
                       Cancel Subscription
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
@@ -338,23 +343,25 @@ export default function SubscriptionPage() {
 
       {/* Billing Cycle Toggle */}
       <div className="flex items-center justify-center mb-8">
-        <div className="bg-gray-100 rounded-xl p-1 flex items-center">
-          <button
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-1 flex items-center">
+          <Button
+            variant="ghost"
             onClick={() => setBillingCycle("monthly")}
-            className={`px-6 py-3 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+            className={`px-6 py-3 rounded-lg cursor-pointer ${
               billingCycle === "monthly"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm hover:bg-white dark:hover:bg-gray-700"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             Monthly
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             onClick={() => setBillingCycle("yearly")}
-            className={`px-6 py-3 text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+            className={`px-6 py-3 rounded-lg cursor-pointer ${
               billingCycle === "yearly"
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm hover:bg-white dark:hover:bg-gray-700"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             }`}
           >
             <span className="flex items-center gap-2">
@@ -365,22 +372,24 @@ export default function SubscriptionPage() {
                 </span>
               )}
             </span>
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Plans Grid */}
       {plans.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-          <AlertCircle className="mx-auto text-gray-400 mb-4" size={48} />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Plans Available</h3>
-          <p className="text-gray-500 max-w-md mx-auto">
+        <div className="text-center py-16 bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 shadow-sm">
+          <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="text-gray-400" size={32} />
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">No Plans Available</h3>
+          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
             No subscription plans are currently available. Please contact support or try again later.
           </p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12 stagger-children">
             {plans.map((plan) => {
               const isCurrentPlan =
                 currentSubscription?.plan.slug === plan.slug &&
@@ -392,12 +401,12 @@ export default function SubscriptionPage() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative bg-white rounded-2xl border-2 p-8 flex flex-col transform transition-all hover:scale-105 ${
+                  className={`relative bg-white dark:bg-gray-800 rounded-2xl border-2 p-8 flex flex-col transform transition-all hover:scale-105 ${
                     isPopular
-                      ? "border-violet-500 shadow-2xl shadow-violet-500/25"
+                      ? "border-emerald-500 shadow-2xl shadow-emerald-500/25"
                       : isCurrentPlan
                         ? "border-green-400 shadow-xl shadow-green-500/20"
-                        : "border-gray-200 hover:border-gray-300 shadow-lg"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300 shadow-lg"
                   }`}
                 >
                   {isCurrentPlan && isPopular ? (
@@ -405,7 +414,7 @@ export default function SubscriptionPage() {
                       <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
                         ✓ Current Plan
                       </div>
-                      <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
+                      <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
                         🚀 Most Popular
                       </div>
                     </div>
@@ -417,7 +426,7 @@ export default function SubscriptionPage() {
                     </div>
                   ) : isPopular ? (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg">
+                      <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-bold px-6 py-2 rounded-full shadow-lg">
                         🚀 Most Popular
                       </div>
                     </div>
@@ -427,14 +436,14 @@ export default function SubscriptionPage() {
                     <div className="mb-4">
                       {getPlanIcon(plan.slug)}
                     </div>
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                       {capitalizeName(plan.name)}
                     </h3>
                     <div className="mb-4">
-                      <span className="text-5xl font-bold text-gray-900">
+                      <span className="text-5xl font-bold text-gray-900 dark:text-gray-100">
                         ${parseFloat(price).toFixed(0)}
                       </span>
-                      <span className="text-gray-500 text-lg">
+                      <span className="text-gray-500 dark:text-gray-400 text-lg">
                         /{billingCycle === "monthly" ? "month" : "year"}
                       </span>
                     </div>
@@ -449,15 +458,15 @@ export default function SubscriptionPage() {
                     <div className="space-y-4 mb-8">
                       {plan.features.map((feature) => (
                         <div key={feature.id} className="flex items-start gap-3">
-                          <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0">
+                          <div className="w-5 h-5 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0">
                             <Check size={12} className="text-green-600" />
                           </div>
                           <div>
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {feature.name}
                             </span>
                             {feature.description && (
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 {feature.description}
                               </p>
                             )}
@@ -467,10 +476,10 @@ export default function SubscriptionPage() {
                       
                       {plan.quotas.map((quota) => (
                         <div key={quota.id} className="flex items-start gap-3">
-                          <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0">
+                          <div className="w-5 h-5 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0">
                             <Users size={10} className="text-blue-600" />
                           </div>
-                          <span className="text-sm font-medium text-gray-900 capitalize">
+                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
                             {quota.limit === 0 ? "Unlimited" : quota.limit}{" "}
                             {quota.feature_code.replace(/_/g, " ")}
                           </span>
@@ -481,17 +490,17 @@ export default function SubscriptionPage() {
 
                   <div className="mt-auto">
                     {isCurrentPlan ? (
-                      <div className="w-full py-4 text-center text-sm font-semibold text-green-700 bg-green-50 rounded-xl border border-green-200">
+                      <div className="w-full py-4 text-center text-sm font-semibold text-green-700 bg-green-50 dark:text-green-300 dark:bg-green-900/30 rounded-xl border border-green-200 dark:border-green-700">
                         <Check className="inline mr-2" size={16} />
                         Your Current Plan
                       </div>
                     ) : (
-                      <button
+                      <Button
                         onClick={() => handleSubscribe(plan.slug)}
                         disabled={subscribing === plan.slug}
-                        className={`w-full py-4 text-sm font-bold rounded-xl transition-all transform disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 cursor-pointer ${
+                        className={`w-full py-4 text-sm font-bold rounded-xl transition-all transform hover:scale-105 ${
                           isPopular
-                            ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg hover:shadow-xl"
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg hover:shadow-xl"
                             : isEnterprise
                               ? "bg-gradient-to-r from-gray-800 to-gray-900 text-white shadow-lg hover:shadow-xl"
                               : "bg-gray-900 text-white hover:bg-gray-800 shadow-lg"
@@ -515,7 +524,7 @@ export default function SubscriptionPage() {
                             )}
                           </>
                         )}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -525,23 +534,24 @@ export default function SubscriptionPage() {
 
           {/* Feature Comparison Toggle */}
           <div className="text-center mb-8">
-            <button
+            <Button
               onClick={() => setShowComparison(!showComparison)}
-              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-violet-600 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer"
+              variant="ghost"
+              className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 cursor-pointer"
             >
               <Info size={16} />
               {showComparison ? "Hide" : "Show"} Detailed Comparison
-            </button>
+            </Button>
           </div>
 
           {/* Detailed Feature Comparison Table */}
           {showComparison && (
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg">
-              <div className="bg-gradient-to-r from-violet-50 to-purple-50 p-8 text-center border-b border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-lg">
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 p-8 text-center border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                   Detailed Feature Comparison
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-300">
                   Compare all features across our subscription plans
                 </p>
               </div>
@@ -549,18 +559,18 @@ export default function SubscriptionPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-6 px-8 text-sm font-semibold text-gray-900">
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-6 px-8 text-sm font-semibold text-gray-900 dark:text-gray-100">
                         Features
                       </th>
                       {plans.map((plan) => (
-                        <th key={plan.id} className="text-center py-6 px-6 text-sm font-semibold text-gray-900">
+                        <th key={plan.id} className="text-center py-6 px-6 text-sm font-semibold text-gray-900 dark:text-gray-100">
                           <div className="flex flex-col items-center gap-2">
                             {getPlanIcon(plan.slug)}
                             {plan.name}
-                            <span className="text-violet-600 font-bold">
+                            <span className="text-emerald-600 font-bold">
                               ${parseFloat(billingCycle === "monthly" ? plan.price_monthly : plan.price_yearly).toFixed(0)}
-                              <span className="text-xs text-gray-500 font-normal">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
                                 /{billingCycle === "monthly" ? "mo" : "yr"}
                               </span>
                             </span>
@@ -571,11 +581,11 @@ export default function SubscriptionPage() {
                   </thead>
                   <tbody>
                     {featureComparisons.map((feature, index) => (
-                      <tr key={feature.code} className={`border-b border-gray-100 ${index % 2 === 0 ? "bg-gray-50/50" : ""}`}>
+                      <tr key={feature.code} className={`border-b border-gray-100 dark:border-gray-700/50 ${index % 2 === 0 ? "bg-gray-50/50 dark:bg-gray-800/50" : ""}`}>
                         <td className="py-4 px-8">
                           <div>
-                            <div className="font-medium text-gray-900">{feature.name}</div>
-                            <div className="text-sm text-gray-500 mt-1">{feature.description}</div>
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{feature.name}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{feature.description}</div>
                           </div>
                         </td>
                         {plans.map((plan) => {
@@ -586,8 +596,8 @@ export default function SubscriptionPage() {
                           return (
                             <td key={plan.id} className="py-4 px-6 text-center">
                               {hasFeature === undefined ? (
-                                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
-                                  <X size={14} className="text-gray-400" />
+                                <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto">
+                                  <X size={14} className="text-gray-400 dark:text-gray-500" />
                                 </div>
                               ) : typeof hasFeature === "boolean" ? (
                                 hasFeature ? (
@@ -595,12 +605,12 @@ export default function SubscriptionPage() {
                                     <Check size={14} className="text-white" />
                                   </div>
                                 ) : (
-                                  <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center mx-auto">
-                                    <X size={14} className="text-gray-400" />
+                                  <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto">
+                                    <X size={14} className="text-gray-400 dark:text-gray-500" />
                                   </div>
                                 )
                               ) : (
-                                <span className="text-sm font-medium text-gray-900">{hasFeature}</span>
+                                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{hasFeature}</span>
                               )}
                             </td>
                           );
@@ -617,31 +627,31 @@ export default function SubscriptionPage() {
 
       {/* FAQ Section */}
       <div className="mt-16 text-center">
-        <h3 className="text-2xl font-bold text-gray-900 mb-4">
+        <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
           Frequently Asked Questions
         </h3>
-        <div className="grid md:grid-cols-2 gap-6 mt-8 text-left max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h4 className="font-semibold text-gray-900 mb-2">Can I change my plan anytime?</h4>
-            <p className="text-sm text-gray-600">
+        <div className="grid md:grid-cols-2 gap-6 mt-8 text-left max-w-4xl mx-auto stagger-children">
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Can I change my plan anytime?</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h4 className="font-semibold text-gray-900 mb-2">What happens when I cancel?</h4>
-            <p className="text-sm text-gray-600">
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">What happens when I cancel?</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Your subscription remains active until the end of your current billing period, then reverts to our free tier.
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h4 className="font-semibold text-gray-900 mb-2">Do you offer refunds?</h4>
-            <p className="text-sm text-gray-600">
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Do you offer refunds?</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               We offer a 30-day money-back guarantee for all new subscriptions. Contact support for assistance.
             </p>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h4 className="font-semibold text-gray-900 mb-2">How does billing work?</h4>
-            <p className="text-sm text-gray-600">
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">How does billing work?</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               You're charged at the beginning of each billing cycle. Annual plans are billed once per year upfront.
             </p>
           </div>

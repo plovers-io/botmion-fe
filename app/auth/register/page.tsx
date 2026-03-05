@@ -4,10 +4,12 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, Loader } from "lucide-react";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import { AuthService } from "@/lib/services/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -47,17 +49,17 @@ export default function RegisterPage() {
       !formData.first_name ||
       !formData.last_name
     ) {
-      toast.error("Please fill in all fields");
+      toast.error("Validation Error", { description: "Please fill in all fields" });
       return;
     }
 
     if (!validateEmail(formData.email)) {
-      toast.error("Please enter a valid email");
+      toast.error("Validation Error", { description: "Please enter a valid email" });
       return;
     }
 
     if (!validatePassword(formData.password)) {
-      toast.error("Password must be at least 8 characters long");
+      toast.error("Validation Error", { description: "Password must be at least 8 characters long" });
       return;
     }
 
@@ -72,24 +74,24 @@ export default function RegisterPage() {
         user_type: "individual",
       });
       
-      toast.success(response.message || "Registration successful! Please check your email for OTP.");
+      toast.success("Registration Successful", { description: response.message || "Please check your email for OTP" });
       
       // Redirect to OTP verification page
       router.push(`/auth/verify-otp?email=${encodeURIComponent(formData.email)}&purpose=register`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Registration failed";
-      toast.error(errorMessage);
+      toast.error("Registration Failed", { description: errorMessage });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 p-4">
-      <Card className="w-full max-w-6xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4">
+      <Card className="w-full max-w-6xl shadow-2xl overflow-hidden border-gray-100/50 dark:border-gray-700/50">
         <div className="grid grid-cols-1 lg:grid-cols-2">
           {/* Left Side - Image */}
-          <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-purple-100 to-blue-100 p-8">
+          <div className="hidden lg:flex items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-500/10 dark:to-teal-500/10 p-8">
             <img
               src="/sign-up-illustration-svg-download-png-5230178.webp"
               alt="Sign up illustration"
@@ -100,29 +102,32 @@ export default function RegisterPage() {
           {/* Right Side - Form */}
           <div className="p-8 lg:p-12 flex flex-col justify-center max-h-screen overflow-y-auto">
             <div className="text-center mb-6">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/25">
+                <User className="text-white" size={24} />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 Create Account
               </h1>
-              <p className="text-gray-600">Sign up to get started</p>
+              <p className="text-gray-500 dark:text-gray-400">Sign up to get started</p>
             </div>
 
             <form onSubmit={handleRegister} className="space-y-4">
           {/* First Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Label className="mb-2">
               First Name
-            </label>
+            </Label>
             <div className="relative">
               <User
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
+                size={18}
               />
-              <input
+              <Input
                 type="text"
                 name="first_name"
                 value={formData.first_name}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="pl-10 py-5 rounded-xl"
                 placeholder="Enter your first name"
                 disabled={loading}
               />
@@ -131,20 +136,20 @@ export default function RegisterPage() {
 
           {/* Last Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Label className="mb-2">
               Last Name
-            </label>
+            </Label>
             <div className="relative">
               <User
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
+                size={18}
               />
-              <input
+              <Input
                 type="text"
                 name="last_name"
                 value={formData.last_name}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="pl-10 py-5 rounded-xl"
                 placeholder="Enter your last name"
                 disabled={loading}
               />
@@ -153,20 +158,20 @@ export default function RegisterPage() {
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Label className="mb-2">
               Email
-            </label>
+            </Label>
             <div className="relative">
               <Mail
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
+                size={18}
               />
-              <input
+              <Input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="pl-10 py-5 rounded-xl"
                 placeholder="Enter your email"
                 disabled={loading}
               />
@@ -175,20 +180,20 @@ export default function RegisterPage() {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Label className="mb-2">
               Password
-            </label>
+            </Label>
             <div className="relative">
               <Lock
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
+                size={18}
               />
-              <input
+              <Input
                 type={showPassword ? "text" : "password"}
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="pl-10 pr-12 py-5 rounded-xl"
                 placeholder="Enter your password (min 8 characters)"
                 disabled={loading}
               />
@@ -207,7 +212,7 @@ export default function RegisterPage() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -222,11 +227,11 @@ export default function RegisterPage() {
 
             {/* Login Link */}
             <div className="mt-6 text-center">
-              <p className="text-gray-600">
+              <p className="text-gray-500">
                 Already have an account?{" "}
                 <Link
                   href="/auth/login"
-                  className="text-purple-600 hover:text-purple-700 font-semibold"
+                  className="text-emerald-600 hover:text-emerald-700 font-semibold"
                 >
                   Sign In
                 </Link>

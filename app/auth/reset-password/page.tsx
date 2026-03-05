@@ -4,10 +4,12 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Lock, Eye, EyeOff, Loader, CheckCircle } from "lucide-react";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import { AuthService } from "@/lib/services/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -26,7 +28,7 @@ function ResetPasswordContent() {
     const emailParam = searchParams.get("email");
     
     if (!token) {
-      toast.error("Invalid reset link");
+      toast.error("Invalid Link", { description: "This reset link is invalid or expired" });
       router.push("/auth/forgot-password");
       return;
     }
@@ -43,22 +45,22 @@ function ResetPasswordContent() {
     e.preventDefault();
 
     if (!password || !confirmPassword) {
-      toast.error("Please fill in all fields");
+      toast.error("Validation Error", { description: "Please fill in all fields" });
       return;
     }
 
     if (!validatePassword(password)) {
-      toast.error("Password must be at least 8 characters long");
+      toast.error("Validation Error", { description: "Password must be at least 8 characters long" });
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match");
+      toast.error("Validation Error", { description: "Passwords do not match" });
       return;
     }
 
     if (!resetToken) {
-      toast.error("Reset token is missing. Please request a new reset link.");
+      toast.error("Token Missing", { description: "Please request a new reset link" });
       return;
     }
 
@@ -70,7 +72,7 @@ function ResetPasswordContent() {
         new_password: password,
       });
 
-      toast.success(response.message || "Password reset successful!");
+      toast.success("Password Reset", { description: response.message || "Your password has been reset successfully" });
       
       // Redirect to login page after successful reset
       setTimeout(() => {
@@ -78,7 +80,7 @@ function ResetPasswordContent() {
       }, 1500);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Password reset failed";
-      toast.error(errorMessage);
+      toast.error("Reset Failed", { description: errorMessage });
       
       // If token expired or invalid, redirect to forgot password
       if (errorMessage.includes("expired") || errorMessage.includes("invalid")) {
@@ -92,20 +94,20 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-blue-50 p-4">
-      <Card className="w-full max-w-md p-8 shadow-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4">
+      <Card className="w-full max-w-md p-8 shadow-2xl border-gray-100/50 dark:border-gray-700/50">
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
-            <Lock className="text-purple-600" size={32} />
+          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/25">
+            <Lock className="text-white" size={28} />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Reset Password
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-500 dark:text-gray-400">
             Enter your new password below
           </p>
           {email && (
-            <p className="text-purple-600 font-semibold mt-1 text-sm">
+            <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1 text-sm">
               {email}
             </p>
           )}
@@ -114,19 +116,19 @@ function ResetPasswordContent() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* New Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Label className="mb-2">
               New Password
-            </label>
+            </Label>
             <div className="relative">
               <Lock
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
+                size={18}
               />
-              <input
+              <Input
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="pl-10 pr-12 py-5 rounded-xl"
                 placeholder="Enter new password (min 8 characters)"
                 disabled={loading}
               />
@@ -143,19 +145,19 @@ function ResetPasswordContent() {
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Label className="mb-2">
               Confirm New Password
-            </label>
+            </Label>
             <div className="relative">
               <Lock
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                size={20}
+                size={18}
               />
-              <input
+              <Input
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                className="pl-10 pr-12 py-5 rounded-xl"
                 placeholder="Confirm your new password"
                 disabled={loading}
               />
@@ -171,11 +173,11 @@ function ResetPasswordContent() {
           </div>
 
           {/* Password Requirements */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm text-blue-800 font-medium mb-1">
+          <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/60 dark:border-emerald-500/20 rounded-xl p-3">
+            <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium mb-1">
               Password Requirements:
             </p>
-            <ul className="text-xs text-blue-700 space-y-1 ml-4 list-disc">
+            <ul className="text-xs text-emerald-600 dark:text-emerald-400 space-y-1 ml-4 list-disc">
               <li>At least 8 characters long</li>
               <li>Mix of letters and numbers recommended</li>
             </ul>
@@ -185,7 +187,7 @@ function ResetPasswordContent() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">

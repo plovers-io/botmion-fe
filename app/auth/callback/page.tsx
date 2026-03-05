@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader } from "lucide-react";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
 import { AuthService } from "@/lib/services/auth-service";
 
@@ -22,14 +22,14 @@ function CallbackContent() {
     hasRun.current = true;
 
     if (error) {
-      toast.error("Google login was cancelled or failed");
+      toast.error("Login Failed", { description: "Google login was cancelled or failed" });
       setProcessing(false);
       router.push("/auth/login");
       return;
     }
 
     if (!code) {
-      toast.error("No authorization code received");
+      toast.error("Login Failed", { description: "No authorization code received" });
       setProcessing(false);
       router.push("/auth/login");
       return;
@@ -44,12 +44,12 @@ function CallbackContent() {
         });
 
         login(response);
-        toast.success("Google login successful!");
+        toast.success("Welcome!", { description: "Google login successful" });
         router.push("/home");
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : "Google login failed";
-        toast.error(errorMessage);
+        toast.error("Login Failed", { description: errorMessage });
         router.push("/auth/login");
       } finally {
         setProcessing(false);

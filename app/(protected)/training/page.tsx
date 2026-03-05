@@ -11,7 +11,7 @@ import {
   DocumentDetail,
   DocumentStatus,
 } from "@/lib/types/training";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import {
   Brain,
   Bot,
@@ -20,7 +20,6 @@ import {
   FileText,
   Globe,
   Trash2,
-  X,
   AlertCircle,
   CheckCircle2,
   Clock,
@@ -34,6 +33,18 @@ import {
   Calendar,
   File as FileIcon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -158,10 +169,10 @@ export default function TrainingPage() {
       setShowSourceModal(false);
       setSourceName("");
       setSourceType("internal");
-      toast.success("Knowledge source created!");
+      toast.success("Source Created", { description: "New knowledge source has been added" });
     } catch (error: unknown) {
       const err = error as { message?: string };
-      toast.error(err?.message || "Failed to create knowledge source");
+      toast.error("Creation Failed", { description: err?.message || "Failed to create knowledge source" });
     } finally {
       setCreatingSource(false);
     }
@@ -172,10 +183,10 @@ export default function TrainingPage() {
       await TrainingService.deleteKnowledgeSource(id);
       setSources((prev) => prev.filter((s) => s.id !== id));
       setDocuments((prev) => prev.filter((d) => d.source !== id));
-      toast.success("Knowledge source deleted");
+      toast.success("Source Deleted", { description: "Knowledge source has been removed" });
     } catch (error: unknown) {
       const err = error as { message?: string };
-      toast.error(err?.message || "Failed to delete");
+      toast.error("Delete Failed", { description: err?.message || "Failed to delete knowledge source" });
     }
   };
 
@@ -193,10 +204,10 @@ export default function TrainingPage() {
       });
       setDocuments((prev) => [newDoc, ...prev]);
       resetDocModal();
-      toast.success("Document added!");
+      toast.success("Document Added", { description: "Your document is ready for training" });
     } catch (error: unknown) {
       const err = error as { message?: string };
-      toast.error(err?.message || "Failed to add document");
+      toast.error("Upload Failed", { description: err?.message || "Failed to add document" });
     } finally {
       setCreatingDoc(false);
     }
@@ -207,10 +218,10 @@ export default function TrainingPage() {
     try {
       await TrainingService.deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
-      toast.success("Document deleted");
+      toast.success("Document Deleted", { description: "The document has been removed" });
     } catch (error: unknown) {
       const err = error as { message?: string };
-      toast.error(err?.message || "Failed to delete document");
+      toast.error("Delete Failed", { description: err?.message || "Failed to delete document" });
     } finally {
       setDeletingDocId(null);
     }
@@ -223,7 +234,7 @@ export default function TrainingPage() {
       setPreviewDoc(detail);
     } catch (error: unknown) {
       const err = error as { message?: string };
-      toast.error(err?.message || "Failed to load document");
+      toast.error("Load Failed", { description: err?.message || "Failed to load document" });
     } finally {
       setLoadingPreview(false);
     }
@@ -235,7 +246,7 @@ export default function TrainingPage() {
     setTrainingDocId(docId);
     try {
       const result = await TrainingService.trainDocument(docId);
-      toast.success(`Training complete — ${result.chunks_count} chunks created`);
+      toast.success("Training Complete", { description: `${result.chunks_count} chunks created successfully` });
       setDocuments((prev) =>
         prev.map((d) =>
           d.id === docId ? { ...d, status: "completed" as DocumentStatus } : d
@@ -243,7 +254,7 @@ export default function TrainingPage() {
       );
     } catch (error: unknown) {
       const err = error as { message?: string };
-      toast.error(err?.message || "Training failed");
+      toast.error("Training Failed", { description: err?.message || "Something went wrong during training" });
       setDocuments((prev) =>
         prev.map((d) =>
           d.id === docId ? { ...d, status: "failed" as DocumentStatus } : d
@@ -273,8 +284,10 @@ export default function TrainingPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <Loader2 className="animate-spin text-violet-600 mx-auto mb-4" size={40} />
-          <p className="text-gray-500">Loading training center...</p>
+          <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
+            <Loader2 className="animate-spin text-emerald-600" size={28} />
+          </div>
+          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Loading training center...</p>
         </div>
       </div>
     );
@@ -290,11 +303,13 @@ export default function TrainingPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Brain className="text-violet-600" size={28} />
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Brain className="text-white" size={20} />
+            </div>
             Training Center
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
             Train your chatbots with knowledge base documents for intelligent RAG responses.
           </p>
         </div>
@@ -302,8 +317,10 @@ export default function TrainingPage() {
 
       {/* Warning states */}
       {!hasCompany && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 mb-6">
-          <AlertCircle className="text-amber-600 mt-0.5 shrink-0" size={20} />
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-4 flex items-start gap-3 mb-6 animate-fade-in-up">
+          <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
+            <AlertCircle className="text-amber-600" size={18} />
+          </div>
           <div>
             <h4 className="text-sm font-semibold text-amber-900 mb-1">Company Required</h4>
             <p className="text-sm text-amber-700">
@@ -314,8 +331,10 @@ export default function TrainingPage() {
       )}
 
       {hasCompany && !hasChatbots && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3 mb-6">
-          <Bot className="text-blue-600 mt-0.5 shrink-0" size={20} />
+        <div className="bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200/60 rounded-2xl p-4 flex items-start gap-3 mb-6 animate-fade-in-up">
+          <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+            <Bot className="text-blue-600" size={18} />
+          </div>
           <div>
             <h4 className="text-sm font-semibold text-blue-900 mb-1">No Chatbots Found</h4>
             <p className="text-sm text-blue-700">
@@ -329,15 +348,13 @@ export default function TrainingPage() {
       {hasCompany && hasChatbots && (
         <div className="space-y-6">
           {/* Chatbot Selector */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Chatbot to Train
-            </label>
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5 shadow-sm">
+            <Label>Select Chatbot to Train</Label>
             <div className="relative">
               <select
                 value={selectedChatbotId || ""}
                 onChange={(e) => setSelectedChatbotId(Number(e.target.value))}
-                className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
+                className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
               >
                 {chatbots.map((bot) => (
                   <option key={bot.id} value={bot.id}>
@@ -353,28 +370,31 @@ export default function TrainingPage() {
           </div>
 
           {/* Knowledge Sources Section */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between p-5 border-b border-gray-50">
               <div className="flex items-center gap-2">
-                <BookOpen size={18} className="text-violet-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Knowledge Sources</h2>
-                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg flex items-center justify-center">
+                  <BookOpen size={16} className="text-emerald-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Knowledge Sources</h2>
+                <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
                   {filteredSources.length}
                 </span>
               </div>
-              <button
+              <Button
                 onClick={() => setShowSourceModal(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors cursor-pointer"
+                size="sm"
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20"
               >
                 <Plus size={16} />
                 Add Source
-              </button>
+              </Button>
             </div>
 
             {filteredSources.length === 0 ? (
               <div className="p-8 text-center">
                 <BookOpen size={32} className="text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
                   No knowledge sources yet. Add your first source to start training.
                 </p>
               </div>
@@ -390,18 +410,18 @@ export default function TrainingPage() {
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                            source.source_type === "internal" ? "bg-violet-50" : "bg-blue-50"
+                            source.source_type === "internal" ? "bg-emerald-50" : "bg-blue-50"
                           }`}
                         >
                           {source.source_type === "internal" ? (
-                            <FileText size={18} className="text-violet-600" />
+                            <FileText size={18} className="text-emerald-600" />
                           ) : (
                             <Globe size={18} className="text-blue-600" />
                           )}
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{source.name}</p>
-                          <p className="text-xs text-gray-400 capitalize">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{source.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                             {source.source_type}
                             {" · "}
                             {sourceDocCount} doc{sourceDocCount !== 1 ? "s" : ""}
@@ -411,23 +431,27 @@ export default function TrainingPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
                           onClick={() => {
                             setSelectedSourceId(source.id);
                             setShowDocModal(true);
                           }}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors cursor-pointer"
+                          variant="ghost"
+                          size="xs"
+                          className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
                         >
                           <Upload size={12} />
                           Add Doc
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => handleDeleteSource(source.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-gray-400 hover:text-red-500 hover:bg-red-50"
                           title="Delete source"
                         >
                           <Trash2 size={14} />
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -437,12 +461,14 @@ export default function TrainingPage() {
           </div>
 
           {/* Documents Section */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between p-5 border-b border-gray-50">
               <div className="flex items-center gap-2">
-                <FileText size={18} className="text-violet-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Documents</h2>
-                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg flex items-center justify-center">
+                  <FileText size={16} className="text-emerald-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Documents</h2>
+                <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-medium">
                   {filteredDocuments.length}
                 </span>
               </div>
@@ -451,7 +477,7 @@ export default function TrainingPage() {
             {filteredDocuments.length === 0 ? (
               <div className="p-8 text-center">
                 <FileText size={32} className="text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
                   No documents yet. Add documents to a knowledge source, then train them.
                 </p>
               </div>
@@ -472,7 +498,7 @@ export default function TrainingPage() {
                           <FileText size={18} className="text-gray-400" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-900 truncate">{doc.title}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{doc.title}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             <span
                               className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${stat.color}`}
@@ -497,19 +523,22 @@ export default function TrainingPage() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-2 ml-3 shrink-0">
-                        <button
+                        <Button
                           onClick={() => handlePreviewDocument(doc.id)}
                           disabled={loadingPreview}
-                          className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
                           title="Preview document"
                         >
                           <Eye size={14} />
-                        </button>
+                        </Button>
 
-                        <button
+                        <Button
                           onClick={() => handleTrain(doc.id)}
                           disabled={isTraining || doc.status === "processing"}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          size="xs"
+                          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm"
                         >
                           {isTraining ? (
                             <Loader2 size={12} className="animate-spin" />
@@ -517,12 +546,14 @@ export default function TrainingPage() {
                             <Zap size={12} />
                           )}
                           {isTraining ? "Training..." : "Train"}
-                        </button>
+                        </Button>
 
-                        <button
+                        <Button
                           onClick={() => handleDeleteDocument(doc.id)}
                           disabled={isDeleting || isTraining}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-gray-400 hover:text-red-500 hover:bg-red-50"
                           title="Delete document"
                         >
                           {isDeleting ? (
@@ -530,7 +561,7 @@ export default function TrainingPage() {
                           ) : (
                             <Trash2 size={14} />
                           )}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -542,388 +573,348 @@ export default function TrainingPage() {
       )}
 
       {/* ─── Create Knowledge Source Modal ─────────────────────────────── */}
-      {showSourceModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setShowSourceModal(false)}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Add Knowledge Source</h2>
-              <button
-                onClick={() => setShowSourceModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                <X size={20} />
-              </button>
+      <Dialog open={showSourceModal} onOpenChange={setShowSourceModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Knowledge Source</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="source-name">Source Name</Label>
+              <Input
+                id="source-name"
+                value={sourceName}
+                onChange={(e) => setSourceName(e.target.value)}
+                placeholder="e.g. Product Documentation"
+                autoFocus
+              />
             </div>
 
-            <div className="p-6 space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Source Name
-                </label>
-                <input
-                  type="text"
-                  value={sourceName}
-                  onChange={(e) => setSourceName(e.target.value)}
-                  placeholder="e.g. Product Documentation"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Source Type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setSourceType("internal")}
-                    className={`p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
-                      sourceType === "internal"
-                        ? "border-violet-500 bg-violet-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <FileText
-                        size={16}
-                        className={sourceType === "internal" ? "text-violet-600" : "text-gray-400"}
-                      />
-                      <span className="text-sm font-medium text-gray-900">Internal</span>
-                    </div>
-                    <p className="text-xs text-gray-500">Upload files &amp; text</p>
-                  </button>
-                  <button
-                    onClick={() => setSourceType("external")}
-                    className={`p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
-                      sourceType === "external"
-                        ? "border-violet-500 bg-violet-50"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Globe
-                        size={16}
-                        className={sourceType === "external" ? "text-violet-600" : "text-gray-400"}
-                      />
-                      <span className="text-sm font-medium text-gray-900">External</span>
-                    </div>
-                    <p className="text-xs text-gray-500">Web URLs &amp; APIs</p>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 p-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowSourceModal(false)}
-                disabled={creatingSource}
-                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateSource}
-                disabled={creatingSource || !sourceName.trim()}
-                className="flex-1 px-4 py-2.5 bg-violet-600 text-white hover:bg-violet-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {creatingSource ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={16} />
-                    Creating...
-                  </span>
-                ) : (
-                  "Create Source"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Add Document Modal ────────────────────────────────────────── */}
-      {showDocModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && resetDocModal()}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white rounded-t-2xl z-10">
-              <h2 className="text-xl font-bold text-gray-900">Add Document</h2>
-              <button
-                onClick={resetDocModal}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5">
-              {/* Source selector if not pre-selected */}
-              {!selectedSourceId && filteredSources.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Knowledge Source <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value=""
-                      onChange={(e) => setSelectedSourceId(Number(e.target.value))}
-                      className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent cursor-pointer"
-                    >
-                      <option value="" disabled>— Select a source —</option>
-                      {filteredSources.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={16}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {selectedSourceId && (
-                <div className="flex items-center gap-2 p-3 bg-violet-50 rounded-lg">
-                  <BookOpen size={14} className="text-violet-600" />
-                  <span className="text-sm text-violet-700 font-medium">
-                    Adding to: {getSourceName(selectedSourceId)}
-                  </span>
-                </div>
-              )}
-
-              {/* Title */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Document Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={docTitle}
-                  onChange={(e) => setDocTitle(e.target.value)}
-                  placeholder="e.g. FAQ Document"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-                  autoFocus
-                />
-              </div>
-
-              {/* Raw Text */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Content (Text)
-                </label>
-                <textarea
-                  value={docText}
-                  onChange={(e) => setDocText(e.target.value)}
-                  placeholder="Paste your knowledge base text here..."
-                  rows={5}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
-                />
-              </div>
-
-              {/* File Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Or Upload File
-                </label>
-                <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-violet-400 hover:bg-violet-50/50 transition-colors">
-                  <div className="text-center">
-                    <Upload size={20} className="text-gray-400 mx-auto mb-1" />
-                    {docFile ? (
-                      <p className="text-sm text-violet-600 font-medium">{docFile.name}</p>
-                    ) : (
-                      <p className="text-sm text-gray-500">Click to upload a file</p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-0.5">PDF, TXT, DOCX, MD, CSV</p>
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.txt,.docx,.md,.csv"
-                    onChange={(e) => setDocFile(e.target.files?.[0] || null)}
-                  />
-                </label>
-                {docFile && (
-                  <button
-                    onClick={() => setDocFile(null)}
-                    className="mt-1.5 text-xs text-red-500 hover:underline"
-                  >
-                    Remove file
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 p-6 border-t border-gray-200 sticky bottom-0 bg-white rounded-b-2xl">
-              <button
-                onClick={resetDocModal}
-                disabled={creatingDoc}
-                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateDocument}
-                disabled={creatingDoc || !docTitle.trim() || !selectedSourceId}
-                className="flex-1 px-4 py-2.5 bg-violet-600 text-white hover:bg-violet-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {creatingDoc ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="animate-spin" size={16} />
-                    Adding...
-                  </span>
-                ) : (
-                  "Add Document"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── Document Preview Modal ────────────────────────────────────── */}
-      {previewDoc && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => e.target === e.currentTarget && setPreviewDoc(null)}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 bg-violet-50 rounded-lg flex items-center justify-center shrink-0">
-                  <FileText size={18} className="text-violet-600" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-lg font-bold text-gray-900 truncate">{previewDoc.title}</h2>
-                  <p className="text-xs text-gray-400">{getSourceName(previewDoc.source)}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 cursor-pointer shrink-0 ml-3"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Meta info */}
-            <div className="flex flex-wrap gap-4 px-6 py-4 border-b border-gray-100 bg-gray-50">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500 font-medium">Status</span>
-                <span
-                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                    statusConfig[previewDoc.status]?.color ?? "bg-gray-100 text-gray-600"
+            <div className="space-y-2">
+              <Label>Source Type</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setSourceType("internal")}
+                  className={`p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
+                    sourceType === "internal"
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 hover:border-gray-300"
                   }`}
                 >
-                  {statusConfig[previewDoc.status]?.icon}
-                  {statusConfig[previewDoc.status]?.label ?? previewDoc.status}
-                </span>
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileText
+                      size={16}
+                      className={sourceType === "internal" ? "text-emerald-600" : "text-gray-400"}
+                    />
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Internal</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Upload files &amp; text</p>
+                </button>
+                <button
+                  onClick={() => setSourceType("external")}
+                  className={`p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
+                    sourceType === "external"
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <Globe
+                      size={16}
+                      className={sourceType === "external" ? "text-emerald-600" : "text-gray-400"}
+                    />
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">External</span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Web URLs &amp; APIs</p>
+                </button>
               </div>
-
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <Hash size={13} />
-                <span>{previewDoc.chunks_count ?? 0} chunks</span>
-              </div>
-
-              {previewDoc.created_at && (
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Calendar size={13} />
-                  <span>{new Date(previewDoc.created_at).toLocaleString()}</span>
-                </div>
-              )}
-
-              {previewDoc.file && (
-                <div className="flex items-center gap-1.5 text-xs text-violet-600">
-                  <FileIcon size={13} />
-                  <a
-                    href={previewDoc.file}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline hover:text-violet-800"
-                  >
-                    View uploaded file
-                  </a>
-                </div>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {previewDoc.error_message && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600 font-medium mb-1">Error</p>
-                  <p className="text-sm text-red-500">{previewDoc.error_message}</p>
-                </div>
-              )}
-
-              {previewDoc.raw_text ? (
-                <div>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                    Document Content
-                  </p>
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 rounded-lg p-4 border border-gray-200 overflow-auto max-h-80">
-                    {previewDoc.raw_text}
-                  </pre>
-                </div>
-              ) : previewDoc.file ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <FileIcon size={36} className="text-gray-300 mb-3" />
-                  <p className="text-sm text-gray-500 mb-1">
-                    This document was uploaded as a file.
-                  </p>
-                  <a
-                    href={previewDoc.file}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-violet-600 underline hover:text-violet-800"
-                  >
-                    Open file in new tab
-                  </a>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <FileText size={36} className="text-gray-300 mb-3" />
-                  <p className="text-sm text-gray-500">No content preview available.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Footer actions */}
-            <div className="flex gap-3 p-6 border-t border-gray-200">
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  const id = previewDoc.id;
-                  setPreviewDoc(null);
-                  handleTrain(id);
-                }}
-                disabled={
-                  trainingDocId === previewDoc.id || previewDoc.status === "processing"
-                }
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 text-white hover:bg-violet-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <Zap size={15} />
-                Train This Document
-              </button>
             </div>
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSourceModal(false)}
+              disabled={creatingSource}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateSource}
+              disabled={creatingSource || !sourceName.trim()}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20"
+            >
+              {creatingSource ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  Creating...
+                </>
+              ) : (
+                "Create Source"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Add Document Modal ────────────────────────────────────────── */}
+      <Dialog open={showDocModal} onOpenChange={(open) => { if (!open) resetDocModal(); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Document</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Source selector if not pre-selected */}
+            {!selectedSourceId && filteredSources.length > 0 && (
+              <div className="space-y-2">
+                <Label>
+                  Knowledge Source <span className="text-red-500">*</span>
+                </Label>
+                <div className="relative">
+                  <select
+                    value=""
+                    onChange={(e) => setSelectedSourceId(Number(e.target.value))}
+                    className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
+                  >
+                    <option value="" disabled>— Select a source —</option>
+                    {filteredSources.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={16}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {selectedSourceId && (
+              <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg">
+                <BookOpen size={14} className="text-emerald-600" />
+                <span className="text-sm text-emerald-700 font-medium">
+                  Adding to: {getSourceName(selectedSourceId)}
+                </span>
+              </div>
+            )}
+
+            {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="doc-title">
+                Document Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="doc-title"
+                value={docTitle}
+                onChange={(e) => setDocTitle(e.target.value)}
+                placeholder="e.g. FAQ Document"
+                autoFocus
+              />
+            </div>
+
+            {/* Raw Text */}
+            <div className="space-y-2">
+              <Label htmlFor="doc-text">Content (Text)</Label>
+              <Textarea
+                id="doc-text"
+                value={docText}
+                onChange={(e) => setDocText(e.target.value)}
+                placeholder="Paste your knowledge base text here..."
+                rows={5}
+                className="resize-none"
+              />
+            </div>
+
+            {/* File Upload */}
+            <div className="space-y-2">
+              <Label>Or Upload File</Label>
+              <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
+                <div className="text-center">
+                  <Upload size={20} className="text-gray-400 mx-auto mb-1" />
+                  {docFile ? (
+                    <p className="text-sm text-emerald-600 font-medium">{docFile.name}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500">Click to upload a file</p>
+                  )}
+                  <p className="text-xs text-gray-400 mt-0.5">PDF, TXT, DOCX, MD, CSV</p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.txt,.docx,.md,.csv"
+                  onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                />
+              </label>
+              {docFile && (
+                <button
+                  onClick={() => setDocFile(null)}
+                  className="mt-1.5 text-xs text-red-500 hover:underline"
+                >
+                  Remove file
+                </button>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetDocModal}
+              disabled={creatingDoc}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateDocument}
+              disabled={creatingDoc || !docTitle.trim() || !selectedSourceId}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20"
+            >
+              {creatingDoc ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  Adding...
+                </>
+              ) : (
+                "Add Document"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Document Preview Modal ────────────────────────────────────── */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) setPreviewDoc(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
+                <FileText size={18} className="text-emerald-600" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="truncate">{previewDoc?.title}</DialogTitle>
+                <p className="text-xs text-gray-400">{previewDoc ? getSourceName(previewDoc.source) : ""}</p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {previewDoc && (
+            <>
+              {/* Meta info */}
+              <div className="flex flex-wrap gap-4 px-4 py-3 border-b border-gray-100 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 font-medium">Status</span>
+                  <Badge
+                    variant="secondary"
+                    className={statusConfig[previewDoc.status]?.color ?? "bg-gray-100 text-gray-600"}
+                  >
+                    {statusConfig[previewDoc.status]?.icon}
+                    {statusConfig[previewDoc.status]?.label ?? previewDoc.status}
+                  </Badge>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Hash size={13} />
+                  <span>{previewDoc.chunks_count ?? 0} chunks</span>
+                </div>
+
+                {previewDoc.created_at && (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <Calendar size={13} />
+                    <span>{new Date(previewDoc.created_at).toLocaleString()}</span>
+                  </div>
+                )}
+
+                {previewDoc.file && (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-600">
+                    <FileIcon size={13} />
+                    <a
+                      href={previewDoc.file}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:text-emerald-800"
+                    >
+                      View uploaded file
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto py-2">
+                {previewDoc.error_message && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-600 font-medium mb-1">Error</p>
+                    <p className="text-sm text-red-500">{previewDoc.error_message}</p>
+                  </div>
+                )}
+
+                {previewDoc.raw_text ? (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                      Document Content
+                    </p>
+                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 rounded-lg p-4 border border-gray-200 overflow-auto max-h-80">
+                      {previewDoc.raw_text}
+                    </pre>
+                  </div>
+                ) : previewDoc.file ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <FileIcon size={36} className="text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500 mb-1">
+                      This document was uploaded as a file.
+                    </p>
+                    <a
+                      href={previewDoc.file}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-emerald-600 underline hover:text-emerald-800"
+                    >
+                      Open file in new tab
+                    </a>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <FileText size={36} className="text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500">No content preview available.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer actions */}
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setPreviewDoc(null)}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    const id = previewDoc.id;
+                    setPreviewDoc(null);
+                    handleTrain(id);
+                  }}
+                  disabled={
+                    trainingDocId === previewDoc.id || previewDoc.status === "processing"
+                  }
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20"
+                >
+                  <Zap size={15} />
+                  Train This Document
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Loading overlay for preview */}
       {loadingPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-xl p-6 flex items-center gap-3 shadow-xl">
-            <Loader2 className="animate-spin text-violet-600" size={20} />
+            <Loader2 className="animate-spin text-emerald-600" size={20} />
             <span className="text-sm font-medium text-gray-700">Loading document...</span>
           </div>
         </div>
