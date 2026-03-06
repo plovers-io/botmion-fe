@@ -155,6 +155,7 @@ export default function SubscriptionPage() {
   };
 
   const getStatusBadge = (status: string) => {
+    const normalizedStatus = status.toLowerCase();
     const styles: Record<string, string> = {
       active: "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700",
       trial: "bg-blue-100 text-blue-700 border border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-700",
@@ -171,10 +172,12 @@ export default function SubscriptionPage() {
 
     const defaultStyle = "bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600";
 
+    const displayLabel = normalizedStatus === "past_due" ? "Past Due" : normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1);
+
     return (
-      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${styles[status] ?? defaultStyle}`}>
-        {icons[status] ?? null}
-        {status === "past_due" ? "Past Due" : status.toUpperCase()}
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${styles[normalizedStatus] ?? defaultStyle}`}>
+        {icons[normalizedStatus] ?? null}
+        {displayLabel}
       </span>
     );
   };
@@ -312,7 +315,7 @@ export default function SubscriptionPage() {
                 <div className="flex flex-col justify-between">
                   <div className="space-y-3">
                     {currentSubscription.plan.quotas.map((quota) => (
-                      <div key={quota.id} className="flex items-center justify-between bg-white/70 dark:bg-white/10 rounded-lg p-3">
+                      <div key={quota.feature_code} className="flex items-center justify-between bg-white/70 dark:bg-white/10 rounded-lg p-3">
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
                           {quota.feature_code.replace(/_/g, " ")}
                         </span>
@@ -323,7 +326,7 @@ export default function SubscriptionPage() {
                     ))}
                   </div>
                   
-                  {currentSubscription.status !== "canceled" && (
+                  {currentSubscription.status !== "CANCELED" && (
                     <Button
                       onClick={handleCancelClick}
                       disabled={canceling}
@@ -393,7 +396,7 @@ export default function SubscriptionPage() {
             {plans.map((plan) => {
               const isCurrentPlan =
                 currentSubscription?.plan.slug === plan.slug &&
-                currentSubscription?.status !== "canceled";
+                currentSubscription?.status !== "CANCELED";
               const price = billingCycle === "monthly" ? plan.price_monthly : plan.price_yearly;
               const isPopular = plan.slug === "pro";
               const isEnterprise = plan.slug === "enterprise";
@@ -475,7 +478,7 @@ export default function SubscriptionPage() {
                       ))}
                       
                       {plan.quotas.map((quota) => (
-                        <div key={quota.id} className="flex items-start gap-3">
+                        <div key={quota.feature_code} className="flex items-start gap-3">
                           <div className="w-5 h-5 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center mt-0.5 flex-shrink-0">
                             <Users size={10} className="text-blue-600" />
                           </div>

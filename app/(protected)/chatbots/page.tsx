@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { ChatbotService } from "@/lib/services/chatbot-service";
 import { Chatbot, BotType } from "@/lib/types/chatbot";
-import { useAuthStore } from "@/lib/store/auth-store-v2";
 import { ConfirmModal } from "@/components/common";
+import { ChatPanel } from "@/components/features/chat-panel";
 import { goeyToast as toast } from "goey-toast";
 import {
   Bot,
@@ -70,7 +70,6 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 export default function ChatbotsPage() {
-  const { user } = useAuthStore();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -80,6 +79,15 @@ export default function ChatbotsPage() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
+
+  // Chat panel state
+  const [chatBot, setChatBot] = useState<Chatbot | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const handleChatOpen = (bot: Chatbot) => {
+    setChatBot(bot);
+    setChatOpen(true);
+  };
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -195,30 +203,12 @@ export default function ChatbotsPage() {
         </div>
         <Button
           onClick={() => { setFormName(""); setFormType("faq"); setShowCreateModal(true); }}
-          disabled={!user?.company}
           className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300"
         >
           <Plus size={18} />
           New Chatbot
         </Button>
       </div>
-
-      {/* Company Warning */}
-      {!user?.company && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-5 flex items-start gap-3 mb-6 animate-fade-in-up shadow-sm">
-          <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-            <AlertCircle className="text-amber-600" size={20} />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-amber-900 mb-1">Company Required</h4>
-            <p className="text-sm text-amber-700">
-              Please create a company first before creating chatbots. Go to the{" "}
-              <a href="/company" className="font-semibold underline hover:text-amber-900">Company</a>{" "}
-              page to get started.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Chatbot Grid or Empty State */}
       {chatbots.length === 0 ? (
@@ -232,7 +222,6 @@ export default function ChatbotsPage() {
           </p>
           <Button
             onClick={() => { setFormName(""); setFormType("faq"); setShowCreateModal(true); }}
-            disabled={!user?.company}
             className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25 px-6"
           >
             <Plus size={18} />
@@ -248,7 +237,8 @@ export default function ChatbotsPage() {
             return (
               <div
                 key={bot.id}
-                className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-6 card-hover group relative overflow-hidden"
+                onClick={() => handleChatOpen(bot)}
+                className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-6 card-hover group relative overflow-hidden cursor-pointer"
               >
                 {/* Subtle gradient accent */}
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -279,12 +269,16 @@ export default function ChatbotsPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onClick={() => handleEditClick(bot)}>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleChatOpen(bot); }}>
+                        <MessageSquare size={14} />
+                        Chat
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClick(bot); }}>
                         <Pencil size={14} />
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => handleDeleteClick(bot)}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(bot); }}
                         className="text-red-600 focus:text-red-600 focus:bg-red-50"
                       >
                         <Trash2 size={14} />
@@ -345,6 +339,9 @@ export default function ChatbotsPage() {
         isLoading={deleting}
         icon={<AlertCircle size={28} className="text-red-500" />}
       />
+
+      {/* Chat Slide-over Panel */}
+      <ChatPanel chatbot={chatBot} open={chatOpen} onOpenChange={setChatOpen} />
     </div>
   );
 }

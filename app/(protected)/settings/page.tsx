@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
-import { userService } from "@/lib/services/user-service";
 import { AuthService } from "@/lib/services/auth-service";
 import { goeyToast as toast } from "goey-toast";
 import { Settings, User, Lock, Loader2 } from "lucide-react";
@@ -31,12 +30,10 @@ export default function SettingsPage() {
 
     setSavingProfile(true);
     try {
-      const response = await userService.updateUser(user.id, {
-        first_name: firstName,
-        last_name: lastName,
-      });
+      // TODO: Backend profile update endpoint not available yet.
+      // For now, only update the local auth store.
       setUser({ ...user, first_name: firstName, last_name: lastName });
-      toast.success("Profile Updated", { description: "Your profile changes have been saved" });
+      toast.success("Profile Updated", { description: "Your profile changes have been saved locally" });
     } catch (error: any) {
       toast.error("Update Failed", { description: error?.message || "Failed to update profile" });
     } finally {
@@ -63,6 +60,7 @@ export default function SettingsPage() {
       await AuthService.changePassword({
         old_password: currentPassword,
         new_password: newPassword,
+        confirm_password: confirmPassword,
       });
       toast.success("Password Updated", { description: "Your password has been changed successfully" });
       setCurrentPassword("");

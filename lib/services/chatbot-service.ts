@@ -45,13 +45,13 @@ export class ChatbotService {
 
   /**
    * Update a chatbot
-   * PATCH /bots/v1/chatbots/:id/
+   * PUT /bots/v1/chatbots/:id/
    */
   static async updateChatbot(
     id: number,
     data: ChatbotUpdateRequest
   ): Promise<Chatbot> {
-    const response = await apiClient.patch<Chatbot>(
+    const response = await apiClient.put<Chatbot>(
       `${BOTS_BASE}/v1/chatbots/${id}/`,
       data
     );

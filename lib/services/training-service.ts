@@ -4,7 +4,6 @@ import {
   KnowledgeSourceCreateRequest,
   Document,
   DocumentCreateRequest,
-  DocumentDetail,
   ChunkingRequest,
   ChunkingResponse,
 } from "@/lib/types/training";
@@ -89,14 +88,22 @@ export class TrainingService {
   }
 
   /**
-   * Get a single document with its chunks count
+   * Get a single document by ID
    * GET /bots/v1/documents/:id/
    */
-  static async getDocument(id: number): Promise<DocumentDetail> {
-    const response = await apiClient.get<DocumentDetail>(
+  static async getDocument(id: number): Promise<Document> {
+    const response = await apiClient.get<Document>(
       `${BOTS_BASE}/v1/documents/${id}/`
     );
     return response.data;
+  }
+
+  /**
+   * Delete a document
+   * DELETE /bots/v1/documents/:id/
+   */
+  static async deleteDocument(id: number): Promise<void> {
+    await apiClient.delete(`${BOTS_BASE}/v1/documents/${id}/`);
   }
 
   /**
@@ -118,14 +125,6 @@ export class TrainingService {
       }
     );
     return response.data;
-  }
-
-  /**
-   * Delete a document
-   * DELETE /bots/v1/documents/:id/
-   */
-  static async deleteDocument(id: number): Promise<void> {
-    await apiClient.delete(`${BOTS_BASE}/v1/documents/${id}/`);
   }
 
   // ─── Chunking & Training ───────────────────────────────────────────

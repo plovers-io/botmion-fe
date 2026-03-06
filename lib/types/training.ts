@@ -5,12 +5,12 @@ export type DocumentStatus = "pending" | "processing" | "completed" | "failed";
 
 export interface KnowledgeSource {
   id: number;
+  chatbot: number;
   source_type: SourceType;
   name: string;
   source_location?: string | null;
   last_synced_at?: string | null;
   created_at?: string;
-  chatbot?: number;
 }
 
 export interface KnowledgeSourceCreateRequest {
@@ -30,11 +30,6 @@ export interface Document {
   status: DocumentStatus;
   error_message?: string | null;
   created_at?: string;
-}
-
-/** Extended document returned by GET /bots/v1/documents/:id/ */
-export interface DocumentDetail extends Document {
-  chunks_count: number;
 }
 
 export interface DocumentCreateRequest {

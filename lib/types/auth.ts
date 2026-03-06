@@ -33,7 +33,7 @@ export interface RegisterResponse {
   message: string;
   user: {
     email: string;
-    id: string;
+    uuid: string;
   };
 }
 
@@ -70,23 +70,25 @@ export interface RegisterRequest {
 
 export interface GenerateOTPRequest {
   email: string;
-  purpose: "register" | "forgot_password" | "password_reset";
+  purpose: "register" | "forgot_password";
 }
 
 export interface VerifyOTPRequest {
   email: string;
   otp: string;
-  purpose: "register" | "forgot_password" | "password_reset";
+  purpose: "register" | "forgot_password";
 }
 
 export interface ResetPasswordRequest {
   reset_token: string;
   new_password: string;
+  confirm_password: string;
 }
 
 export interface ChangePasswordRequest {
   old_password: string;
   new_password: string;
+  confirm_password: string;
 }
 
 // Google Auth types

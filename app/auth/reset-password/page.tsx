@@ -70,6 +70,7 @@ function ResetPasswordContent() {
       const response = await AuthService.resetPassword({
         reset_token: resetToken,
         new_password: password,
+        confirm_password: confirmPassword,
       });
 
       toast.success("Password Reset", { description: response.message || "Your password has been reset successfully" });

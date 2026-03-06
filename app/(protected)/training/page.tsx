@@ -8,7 +8,6 @@ import { Chatbot } from "@/lib/types/chatbot";
 import {
   KnowledgeSource,
   Document,
-  DocumentDetail,
   DocumentStatus,
 } from "@/lib/types/training";
 import { goeyToast as toast } from "goey-toast";
@@ -103,7 +102,7 @@ export default function TrainingPage() {
   const [creatingDoc, setCreatingDoc] = useState(false);
 
   // Document preview modal
-  const [previewDoc, setPreviewDoc] = useState<DocumentDetail | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Delete confirmation
@@ -230,8 +229,8 @@ export default function TrainingPage() {
   const handlePreviewDocument = async (id: number) => {
     setLoadingPreview(true);
     try {
-      const detail = await TrainingService.getDocument(id);
-      setPreviewDoc(detail);
+      const doc = await TrainingService.getDocument(id);
+      setPreviewDoc(doc);
     } catch (error: unknown) {
       const err = error as { message?: string };
       toast.error("Load Failed", { description: err?.message || "Failed to load document" });
@@ -293,7 +292,6 @@ export default function TrainingPage() {
     );
   }
 
-  const hasCompany = !!user?.company;
   const hasChatbots = chatbots.length > 0;
 
   // ─── Render ─────────────────────────────────────────────────────────
@@ -316,21 +314,7 @@ export default function TrainingPage() {
       </div>
 
       {/* Warning states */}
-      {!hasCompany && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/60 rounded-2xl p-4 flex items-start gap-3 mb-6 animate-fade-in-up">
-          <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center shrink-0">
-            <AlertCircle className="text-amber-600" size={18} />
-          </div>
-          <div>
-            <h4 className="text-sm font-semibold text-amber-900 mb-1">Company Required</h4>
-            <p className="text-sm text-amber-700">
-              Please create a company first from the Company page before using the Training Center.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {hasCompany && !hasChatbots && (
+      {!hasChatbots && (
         <div className="bg-gradient-to-r from-blue-50 to-sky-50 border border-blue-200/60 rounded-2xl p-4 flex items-start gap-3 mb-6 animate-fade-in-up">
           <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
             <Bot className="text-blue-600" size={18} />
@@ -345,7 +329,7 @@ export default function TrainingPage() {
       )}
 
       {/* Main Content */}
-      {hasCompany && hasChatbots && (
+      {hasChatbots && (
         <div className="space-y-6">
           {/* Chatbot Selector */}
           <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5 shadow-sm">
@@ -816,7 +800,7 @@ export default function TrainingPage() {
 
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
                   <Hash size={13} />
-                  <span>{previewDoc.chunks_count ?? 0} chunks</span>
+                  <span>{(previewDoc as any).chunks_count ?? "N/A"} chunks</span>
                 </div>
 
                 {previewDoc.created_at && (

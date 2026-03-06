@@ -18,7 +18,7 @@ import {
   LogOut,
   Menu,
   User,
-  Building2,
+  Briefcase,
   Brain,
   Sun,
   Moon,
@@ -43,9 +43,9 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard size={20} />,
   },
   {
-    label: "Company",
-    href: "/company",
-    icon: <Building2 size={20} />,
+    label: "Workspace",
+    href: "/workspace",
+    icon: <Briefcase size={20} />,
   },
   {
     label: "Chatbots",
