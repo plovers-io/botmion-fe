@@ -16,6 +16,7 @@ export interface Integration {
   platform: PlatformType;
   platform_display: string;
   config: MessengerConfig | Record<string, unknown>;
+  safe_config?: Record<string, unknown>;
   is_active: boolean;
   created_at: string;
   updated_at?: string;
