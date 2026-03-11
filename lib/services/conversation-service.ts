@@ -73,6 +73,37 @@ export class ConversationService {
   }
 
   /**
+   * SSE stream for a message — replaces polling.
+   * Returns an EventSource-like interface that resolves when the message is ready.
+   */
+  static streamMessage(
+    uuid: string,
+    onComplete: (data: { status: string; content: string }) => void,
+    onError: () => void,
+  ): { close: () => void } {
+    const url = `${MESSAGING_BASE}/v1/messages/${uuid}/stream/`;
+    const eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        eventSource.close();
+        onComplete(data);
+      } catch {
+        eventSource.close();
+        onError();
+      }
+    };
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      onError();
+    };
+
+    return { close: () => eventSource.close() };
+  }
+
+  /**
    * Public chat (no auth — end-user widget)
    * POST /messaging/v1/public/chat/
    */

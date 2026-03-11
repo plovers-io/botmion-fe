@@ -48,6 +48,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/common/confirm-dialog";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -114,6 +115,7 @@ export default function TrainingPage() {
 
   // Delete confirmation
   const [deletingDocId, setDeletingDocId] = useState<number | null>(null);
+  const [pendingDeleteDocId, setPendingDeleteDocId] = useState<number | null>(null);
 
   // Training
   const [trainingDocId, setTrainingDocId] = useState<number | null>(null);
@@ -228,12 +230,13 @@ export default function TrainingPage() {
     try {
       await TrainingService.deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
-      toast.success("Document Deleted", { description: "The document has been removed" });
+      toast.success("Document Deleted", { description: "The document and its knowledge have been permanently removed from the chatbot." });
     } catch (error: unknown) {
       const err = error as { message?: string };
       toast.error("Delete Failed", { description: err?.message || "Failed to delete document" });
     } finally {
       setDeletingDocId(null);
+      setPendingDeleteDocId(null);
     }
   };
 
@@ -547,7 +550,7 @@ export default function TrainingPage() {
                         </Button>
 
                         <Button
-                          onClick={() => handleDeleteDocument(doc.id)}
+                          onClick={() => setPendingDeleteDocId(doc.id)}
                           disabled={isDeleting || isTraining}
                           variant="ghost"
                           size="icon-xs"
@@ -1023,6 +1026,24 @@ export default function TrainingPage() {
           </div>
         </div>
       )}
+
+      {/* ─── Delete Document Confirmation Modal ────────────────────────── */}
+      <ConfirmDialog
+        isOpen={pendingDeleteDocId !== null}
+        onClose={() => setPendingDeleteDocId(null)}
+        onConfirm={() => {
+          if (pendingDeleteDocId !== null) {
+            handleDeleteDocument(pendingDeleteDocId);
+          }
+        }}
+        title="Delete Document?"
+        description="This will permanently remove the document and all its trained knowledge from the chatbot. The chatbot will no longer be able to answer questions based on this document."
+        confirmText="Delete Document"
+        cancelText="Cancel"
+        confirmVariant="danger"
+        isLoading={deletingDocId !== null}
+        icon={<Trash2 size={24} className="text-red-500" />}
+      />
     </div>
   );
 }

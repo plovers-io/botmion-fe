@@ -30,7 +30,10 @@ export default function PublicChatPage() {
   const [config, setConfig] = useState<PublicChatbotConfig | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const pollTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pollTimersRef = useRef<Map<string, { close: () => void }>>(new Map());
+  // Synchronous guard — React state updates are async and cannot reliably prevent
+  // duplicate sends when the user presses Enter rapidly or during IME composition.
+  const isSendingRef = useRef(false);
 
   // Derived theme values
   const primaryColor = (config?.widget?.theme_config?.primary_color as string) || "#10b981";
@@ -84,7 +87,7 @@ export default function PublicChatPage() {
     }
     setSessionId(stored);
     return () => {
-      pollTimersRef.current.forEach((t) => clearTimeout(t));
+      pollTimersRef.current.forEach((handle) => handle.close());
     };
   }, [chatbotUuid]);
 
@@ -100,52 +103,40 @@ export default function PublicChatPage() {
     inputRef.current?.focus();
   }, []);
 
-  const startPolling = useCallback((msgUuid: string, attempt = 0) => {
-    const MAX_ATTEMPTS = 40;
-    const INTERVAL_MS = 1500;
-
-    const timer = setTimeout(async () => {
-      pollTimersRef.current.delete(msgUuid);
-      try {
-        const msg = await ConversationService.getMessage(msgUuid);
-        if (msg.status === "processing" && attempt < MAX_ATTEMPTS) {
-          startPolling(msgUuid, attempt + 1);
-          return;
-        }
+  const waitForResponse = useCallback((msgUuid: string) => {
+    const handle = ConversationService.streamMessage(
+      msgUuid,
+      (data) => {
+        pollTimersRef.current.delete(msgUuid);
         setMessages((prev) =>
           prev.map((m) =>
             m.uuid === msgUuid
               ? {
                   ...m,
-                  content:
-                    msg.status !== "processing"
-                      ? msg.content
-                      : "The response took too long. Please try again.",
-                  status: msg.status !== "processing" ? msg.status : "failed",
+                  content: data.status !== "timeout" ? data.content : "The response took too long. Please try again.",
+                  status: data.status !== "timeout" ? data.status : "failed",
                 }
               : m
           )
         );
-      } catch {
-        if (attempt < MAX_ATTEMPTS) {
-          startPolling(msgUuid, attempt + 1);
-        } else {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.uuid === msgUuid
-                ? { ...m, content: "Could not retrieve response. Please try again.", status: "failed" }
-                : m
-            )
-          );
-        }
-      }
-    }, INTERVAL_MS);
-
-    pollTimersRef.current.set(msgUuid, timer);
+      },
+      () => {
+        pollTimersRef.current.delete(msgUuid);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.uuid === msgUuid
+              ? { ...m, content: "Could not retrieve response. Please try again.", status: "failed" }
+              : m
+          )
+        );
+      },
+    );
+    pollTimersRef.current.set(msgUuid, handle);
   }, []);
 
   const handleSend = async () => {
-    if (!input.trim() || sending || !sessionId) return;
+    if (!input.trim() || isSendingRef.current || !sessionId) return;
+    isSendingRef.current = true;
 
     const userContent = input.trim();
     setInput("");
@@ -194,7 +185,7 @@ export default function PublicChatPage() {
       );
 
       if (asst.status === "processing") {
-        startPolling(asst.uuid);
+        waitForResponse(asst.uuid);
       }
     } catch {
       setMessages((prev) =>
@@ -209,11 +200,14 @@ export default function PublicChatPage() {
           })
       );
     } finally {
+      isSendingRef.current = false;
       setSending(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Skip while IME is composing (e.g. Banglish / phonetic Bengali input)
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
