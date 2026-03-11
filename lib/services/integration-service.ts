@@ -1,0 +1,80 @@
+import { apiClient } from "./api-client";
+import {
+  Integration,
+  IntegrationCreateRequest,
+  IntegrationUpdateRequest,
+} from "@/lib/types/integration";
+
+const INTEGRATIONS_BASE =
+  process.env.NEXT_PUBLIC_INTEGRATIONS_URL ||
+  "http://localhost:8000/integrations";
+
+export class IntegrationService {
+  /**
+   * List all integrations for the authenticated user
+   * GET /integrations/v1/integrations/
+   */
+  static async getIntegrations(params?: {
+    platform?: string;
+    chatbot_id?: number;
+  }): Promise<Integration[]> {
+    const query = new URLSearchParams();
+    if (params?.platform) query.set("platform", params.platform);
+    if (params?.chatbot_id)
+      query.set("chatbot_id", String(params.chatbot_id));
+    const qs = query.toString();
+    const url = `${INTEGRATIONS_BASE}/v1/integrations/${qs ? `?${qs}` : ""}`;
+    const response = await apiClient.get<Integration[]>(url);
+    return response.data;
+  }
+
+  /**
+   * Get a single integration by ID
+   * GET /integrations/v1/integrations/:id/
+   */
+  static async getIntegration(id: number): Promise<Integration> {
+    const response = await apiClient.get<Integration>(
+      `${INTEGRATIONS_BASE}/v1/integrations/${id}/`
+    );
+    return response.data;
+  }
+
+  /**
+   * Create a new integration
+   * POST /integrations/v1/integrations/
+   */
+  static async createIntegration(
+    data: IntegrationCreateRequest
+  ): Promise<Integration> {
+    const response = await apiClient.post<Integration>(
+      `${INTEGRATIONS_BASE}/v1/integrations/`,
+      data
+    );
+    return response.data;
+  }
+
+  /**
+   * Update an integration
+   * PATCH /integrations/v1/integrations/:id/
+   */
+  static async updateIntegration(
+    id: number,
+    data: IntegrationUpdateRequest
+  ): Promise<Integration> {
+    const response = await apiClient.patch<Integration>(
+      `${INTEGRATIONS_BASE}/v1/integrations/${id}/`,
+      data
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete (soft-delete) an integration
+   * DELETE /integrations/v1/integrations/:id/
+   */
+  static async deleteIntegration(id: number): Promise<void> {
+    await apiClient.delete(
+      `${INTEGRATIONS_BASE}/v1/integrations/${id}/`
+    );
+  }
+}

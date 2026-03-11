@@ -107,7 +107,7 @@ export class TrainingService {
   }
 
   /**
-   * Create a document (file upload or raw text)
+   * Create a document (file upload, raw text, URL, or Q&A pairs)
    * POST /bots/v1/documents/
    */
   static async createDocument(data: DocumentCreateRequest): Promise<Document> {
@@ -116,6 +116,8 @@ export class TrainingService {
     formData.append("title", data.title);
     if (data.raw_text) formData.append("raw_text", data.raw_text);
     if (data.file) formData.append("file", data.file);
+    if (data.url) formData.append("url", data.url);
+    if (data.qa_pairs) formData.append("qa_pairs", JSON.stringify(data.qa_pairs));
 
     const response = await apiClient.post<Document>(
       `${BOTS_BASE}/v1/documents/`,

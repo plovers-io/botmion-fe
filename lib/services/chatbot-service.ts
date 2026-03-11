@@ -1,8 +1,10 @@
 import { apiClient } from "./api-client";
+import axios from "axios";
 import {
   Chatbot,
   ChatbotCreateRequest,
   ChatbotUpdateRequest,
+  PublicChatbotConfig,
 } from "@/lib/types/chatbot";
 
 const BOTS_BASE =
@@ -44,14 +46,14 @@ export class ChatbotService {
   }
 
   /**
-   * Update a chatbot
-   * PUT /bots/v1/chatbots/:id/
+   * Update a chatbot (partial update)
+   * PATCH /bots/v1/chatbots/:id/
    */
   static async updateChatbot(
     id: number,
     data: ChatbotUpdateRequest
   ): Promise<Chatbot> {
-    const response = await apiClient.put<Chatbot>(
+    const response = await apiClient.patch<Chatbot>(
       `${BOTS_BASE}/v1/chatbots/${id}/`,
       data
     );
@@ -67,5 +69,38 @@ export class ChatbotService {
       `${BOTS_BASE}/v1/chatbots/${id}/`
     );
     return response.data;
+  }
+
+  /**
+   * Get public chatbot config for widget (no auth required)
+   * GET /bots/v1/widget/:uuid/config/
+   */
+  static async getPublicConfig(
+    chatbotUuid: string,
+    preview?: boolean
+  ): Promise<PublicChatbotConfig> {
+    const params = preview ? { preview: '1' } : undefined;
+    const response = await axios.get<PublicChatbotConfig>(
+      `${BOTS_BASE}/v1/widget/${chatbotUuid}/config/`,
+      { params }
+    );
+    return response.data;
+  }
+
+  /**
+   * Get the embed script URL for a chatbot widget
+   */
+  static getEmbedScriptUrl(chatbotUuid: string): string {
+    return `${BOTS_BASE}/v1/widget/${chatbotUuid}/embed.js`;
+  }
+
+  /**
+   * Get the iframe embed URL for a chatbot widget
+   */
+  static getIframeUrl(chatbotUuid: string, preview?: boolean): string {
+    const frontendUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const base = `${frontendUrl}/chat/${chatbotUuid}`;
+    return preview ? `${base}?preview=1` : base;
   }
 }

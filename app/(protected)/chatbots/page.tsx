@@ -6,6 +6,7 @@ import { Chatbot, BotType } from "@/lib/types/chatbot";
 import { ConfirmModal } from "@/components/common";
 import { ChatPanel } from "@/components/features/chat-panel";
 import { goeyToast as toast } from "goey-toast";
+import { useRouter } from "next/navigation";
 import {
   Bot,
   Plus,
@@ -18,6 +19,7 @@ import {
   Megaphone,
   Settings2,
   AlertCircle,
+  Sliders,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +72,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 export default function ChatbotsPage() {
+  const router = useRouter();
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -276,6 +279,10 @@ export default function ChatbotsPage() {
                       <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClick(bot); }}>
                         <Pencil size={14} />
                         Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/chatbots/${bot.id}/settings`); }}>
+                        <Sliders size={14} />
+                        Settings
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={(e) => { e.stopPropagation(); handleDeleteClick(bot); }}

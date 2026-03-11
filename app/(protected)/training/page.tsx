@@ -9,6 +9,7 @@ import {
   KnowledgeSource,
   Document,
   DocumentStatus,
+  QAPair,
 } from "@/lib/types/training";
 import { goeyToast as toast } from "goey-toast";
 import {
@@ -31,6 +32,9 @@ import {
   Hash,
   Calendar,
   File as FileIcon,
+  Link2,
+  HelpCircle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +103,9 @@ export default function TrainingPage() {
   const [docTitle, setDocTitle] = useState("");
   const [docText, setDocText] = useState("");
   const [docFile, setDocFile] = useState<File | null>(null);
+  const [docUrl, setDocUrl] = useState("");
+  const [docInputType, setDocInputType] = useState<"text" | "file" | "url" | "qa">("text");
+  const [qaPairs, setQaPairs] = useState<QAPair[]>([{ question: "", answer: "" }]);
   const [creatingDoc, setCreatingDoc] = useState(false);
 
   // Document preview modal
@@ -198,8 +205,12 @@ export default function TrainingPage() {
       const newDoc = await TrainingService.createDocument({
         source_id: selectedSourceId,
         title: docTitle.trim(),
-        raw_text: docText.trim() || undefined,
-        file: docFile || undefined,
+        raw_text: docInputType === "text" && docText.trim() ? docText.trim() : undefined,
+        file: docInputType === "file" && docFile ? docFile : undefined,
+        url: docInputType === "url" && docUrl.trim() ? docUrl.trim() : undefined,
+        qa_pairs: docInputType === "qa" && qaPairs.some((p) => p.question.trim() && p.answer.trim())
+          ? qaPairs.filter((p) => p.question.trim() && p.answer.trim())
+          : undefined,
       });
       setDocuments((prev) => [newDoc, ...prev]);
       resetDocModal();
@@ -275,6 +286,9 @@ export default function TrainingPage() {
     setDocTitle("");
     setDocText("");
     setDocFile(null);
+    setDocUrl("");
+    setDocInputType("text");
+    setQaPairs([{ question: "", answer: "" }]);
   };
 
   // ─── Loading state ──────────────────────────────────────────────────
@@ -698,48 +712,154 @@ export default function TrainingPage() {
               />
             </div>
 
-            {/* Raw Text */}
-            <div className="space-y-2">
-              <Label htmlFor="doc-text">Content (Text)</Label>
-              <Textarea
-                id="doc-text"
-                value={docText}
-                onChange={(e) => setDocText(e.target.value)}
-                placeholder="Paste your knowledge base text here..."
-                rows={5}
-                className="resize-none"
-              />
+            {/* Input Type Tabs */}
+            <div className="space-y-3">
+              <Label>Content Type</Label>
+              <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+                {([
+                  { key: "text", label: "Text", icon: <FileText size={14} /> },
+                  { key: "file", label: "File", icon: <Upload size={14} /> },
+                  { key: "url", label: "URL", icon: <Link2 size={14} /> },
+                  { key: "qa", label: "Q&A", icon: <HelpCircle size={14} /> },
+                ] as const).map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setDocInputType(tab.key)}
+                    className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                      docInputType === tab.key
+                        ? "bg-white dark:bg-gray-700 text-emerald-700 dark:text-emerald-400 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* File Upload */}
-            <div className="space-y-2">
-              <Label>Or Upload File</Label>
-              <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
-                <div className="text-center">
-                  <Upload size={20} className="text-gray-400 mx-auto mb-1" />
-                  {docFile ? (
-                    <p className="text-sm text-emerald-600 font-medium">{docFile.name}</p>
-                  ) : (
-                    <p className="text-sm text-gray-500">Click to upload a file</p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-0.5">PDF, TXT, DOCX, MD, CSV</p>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.txt,.docx,.md,.csv"
-                  onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+            {/* Raw Text Input */}
+            {docInputType === "text" && (
+              <div className="space-y-2">
+                <Label htmlFor="doc-text">Content (Text)</Label>
+                <Textarea
+                  id="doc-text"
+                  value={docText}
+                  onChange={(e) => setDocText(e.target.value)}
+                  placeholder="Paste your knowledge base text here..."
+                  rows={5}
+                  className="resize-none"
                 />
-              </label>
-              {docFile && (
-                <button
-                  onClick={() => setDocFile(null)}
-                  className="mt-1.5 text-xs text-red-500 hover:underline"
-                >
-                  Remove file
-                </button>
-              )}
-            </div>
+              </div>
+            )}
+
+            {/* File Upload */}
+            {docInputType === "file" && (
+              <div className="space-y-2">
+                <Label>Upload File</Label>
+                <label className="flex items-center justify-center w-full p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 transition-colors">
+                  <div className="text-center">
+                    <Upload size={20} className="text-gray-400 mx-auto mb-1" />
+                    {docFile ? (
+                      <p className="text-sm text-emerald-600 font-medium">{docFile.name}</p>
+                    ) : (
+                      <p className="text-sm text-gray-500">Click to upload a file</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-0.5">PDF, TXT, DOCX, MD, CSV, PPTX</p>
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.txt,.docx,.md,.csv,.pptx"
+                    onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                {docFile && (
+                  <button
+                    onClick={() => setDocFile(null)}
+                    className="mt-1.5 text-xs text-red-500 hover:underline"
+                  >
+                    Remove file
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* URL Input */}
+            {docInputType === "url" && (
+              <div className="space-y-2">
+                <Label htmlFor="doc-url">Website URL</Label>
+                <Input
+                  id="doc-url"
+                  type="url"
+                  value={docUrl}
+                  onChange={(e) => setDocUrl(e.target.value)}
+                  placeholder="https://example.com/page-to-crawl"
+                />
+                <p className="text-xs text-gray-400">
+                  The page content will be crawled and extracted as training data.
+                </p>
+              </div>
+            )}
+
+            {/* Q&A Pairs */}
+            {docInputType === "qa" && (
+              <div className="space-y-3">
+                <Label>Question & Answer Pairs</Label>
+                {qaPairs.map((pair, idx) => (
+                  <div key={idx} className="p-3 border border-gray-200 dark:border-gray-700 rounded-lg space-y-2 relative">
+                    {qaPairs.length > 1 && (
+                      <button
+                        onClick={() => setQaPairs((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 cursor-pointer"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                    <div className="space-y-1">
+                      <Label className="text-xs">Question {idx + 1}</Label>
+                      <Input
+                        value={pair.question}
+                        onChange={(e) => {
+                          const updated = [...qaPairs];
+                          updated[idx] = { ...updated[idx], question: e.target.value };
+                          setQaPairs(updated);
+                        }}
+                        placeholder="e.g. What are your business hours?"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Answer</Label>
+                      <Textarea
+                        value={pair.answer}
+                        onChange={(e) => {
+                          const updated = [...qaPairs];
+                          updated[idx] = { ...updated[idx], answer: e.target.value };
+                          setQaPairs(updated);
+                        }}
+                        placeholder="We are open Monday to Friday, 9 AM to 5 PM."
+                        rows={2}
+                        className="resize-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+                {qaPairs.length < 20 && (
+                  <Button
+                    onClick={() => setQaPairs((prev) => [...prev, { question: "", answer: "" }])}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <Plus size={14} />
+                    Add Another Q&A Pair
+                  </Button>
+                )}
+                <p className="text-xs text-gray-400">
+                  {qaPairs.filter((p) => p.question.trim() && p.answer.trim()).length} of {qaPairs.length} pairs filled
+                </p>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

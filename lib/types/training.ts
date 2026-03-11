@@ -37,6 +37,13 @@ export interface DocumentCreateRequest {
   title: string;
   raw_text?: string;
   file?: File;
+  url?: string;
+  qa_pairs?: QAPair[];
+}
+
+export interface QAPair {
+  question: string;
+  answer: string;
 }
 
 export interface ChunkingRequest {
