@@ -64,6 +64,15 @@ export interface TokenUsageTimeSeriesPoint {
   selected_tokens: number;
 }
 
+export interface TokenUsageBreakdownPagination {
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
 export interface TokenUsageAnalyticsResponse {
   filters: {
     chatbot_id: number | null;
@@ -77,8 +86,12 @@ export interface TokenUsageAnalyticsResponse {
     total_tokens: number;
     request_count: number;
   };
+  top_account: TokenUsageAccountBreakdown | null;
+  top_chatbot: TokenUsageChatbotBreakdown | null;
   account_breakdown: TokenUsageAccountBreakdown[];
+  account_breakdown_pagination: TokenUsageBreakdownPagination;
   chatbot_breakdown: TokenUsageChatbotBreakdown[];
+  chatbot_breakdown_pagination: TokenUsageBreakdownPagination;
   timeseries: TokenUsageTimeSeriesPoint[];
 }
 
@@ -87,4 +100,8 @@ export interface TokenUsageAnalyticsQuery {
   token_type?: TokenTypeFilter;
   start_date?: string;
   end_date?: string;
+  account_page?: number;
+  account_page_size?: number;
+  chatbot_page?: number;
+  chatbot_page_size?: number;
 }

@@ -4,12 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ConversationService } from "@/lib/services/conversation-service";
 import { Message, ChatMessageResponse } from "@/lib/types/conversation";
 import { Chatbot } from "@/lib/types/chatbot";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
   Bot,
@@ -471,14 +465,10 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
     inputRef.current?.focus();
   };
 
-  if (!chatbot) return null;
+  if (!chatbot || !open) return null;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-110 p-0 flex flex-col gap-0 [&>button:first-child]:hidden inset-y-4! right-4! h-[calc(100vh-2rem)]! rounded-2xl overflow-hidden border-0! shadow-2xl"
-      >
+    <div className="fixed right-4 top-4 z-50 w-[min(440px,calc(100vw-2rem))] h-[calc(100vh-2rem)] rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-2xl border border-gray-200/70 dark:border-gray-700/60 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-900">
           <div className="flex items-center gap-3">
@@ -486,11 +476,9 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
               <Bot className="text-white" size={20} />
             </div>
             <div>
-              <SheetHeader className="p-0 space-y-0">
-                <SheetTitle className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-tight">
-                  {chatbot.name}
-                </SheetTitle>
-              </SheetHeader>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-tight">
+                {chatbot.name}
+              </h3>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-[11px] text-gray-400 font-medium">Online</span>
@@ -511,7 +499,7 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
               variant="ghost"
               size="icon-sm"
               onClick={() => onOpenChange(false)}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <X size={16} />
             </Button>
@@ -711,7 +699,6 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
               : "Shift+Enter for new line"}
           </p>
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
   );
 }

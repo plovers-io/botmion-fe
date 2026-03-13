@@ -7,8 +7,9 @@ import { ConfirmModal } from "@/components/common";
 import { ChatPanel } from "@/components/features/chat-panel";
 import { goeyToast as toast } from "goey-toast";
 import { useRouter } from "next/navigation";
+import { type IconSvgElement, HugeiconsIcon } from "@hugeicons/react";
+import { BotIcon } from "@hugeicons/core-free-icons";
 import {
-  Bot,
   Plus,
   Loader2,
   MoreVertical,
@@ -70,6 +71,10 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   draft: { label: "Draft", color: "bg-yellow-100 text-yellow-700" },
   archived: { label: "Archived", color: "bg-gray-100 text-gray-500" },
 };
+
+function ChatbotIcon({ className, size = 20 }: { className?: string; size?: number }) {
+  return <HugeiconsIcon icon={BotIcon as IconSvgElement} size={size} className={className} strokeWidth={1.8} />;
+}
 
 export default function ChatbotsPage() {
   const router = useRouter();
@@ -198,7 +203,7 @@ export default function ChatbotsPage() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Bot className="text-white" size={22} />
+              <ChatbotIcon className="text-white" size={22} />
             </div>
             Chatbots
           </h1>
@@ -217,7 +222,7 @@ export default function ChatbotsPage() {
       {chatbots.length === 0 ? (
         <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-16 text-center animate-fade-in-up shadow-sm">
           <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-500/15 dark:to-teal-500/15 rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-sm">
-            <Bot size={36} className="text-emerald-500" />
+            <ChatbotIcon size={36} className="text-emerald-500" />
           </div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">No chatbots yet</h3>
           <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto mb-8">
@@ -249,7 +254,7 @@ export default function ChatbotsPage() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-500/15 dark:to-teal-500/15 rounded-xl flex items-center justify-center shadow-sm">
-                      <Bot size={20} className="text-emerald-600 dark:text-emerald-400" />
+                      <ChatbotIcon size={20} className="text-emerald-600 dark:text-emerald-400" />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate max-w-[180px]">{bot.name}</h3>
@@ -266,27 +271,27 @@ export default function ChatbotsPage() {
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-gray-600 cursor-pointer"
                       >
                         <MoreVertical size={16} />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleChatOpen(bot); }}>
+                      <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleChatOpen(bot); }}>
                         <MessageSquare size={14} />
                         Chat
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClick(bot); }}>
+                      <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleEditClick(bot); }}>
                         <Pencil size={14} />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/chatbots/${bot.id}/settings`); }}>
+                      <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); router.push(`/chatbots/${bot.id}/settings`); }}>
                         <Sliders size={14} />
                         Settings
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={(e) => { e.stopPropagation(); handleDeleteClick(bot); }}
-                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                        className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
                       >
                         <Trash2 size={14} />
                         Delete

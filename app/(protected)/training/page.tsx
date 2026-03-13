@@ -26,7 +26,6 @@ import {
   AlertTriangle,
   Zap,
   Upload,
-  ChevronDown,
   BookOpen,
   Eye,
   Hash,
@@ -41,6 +40,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -351,23 +357,21 @@ export default function TrainingPage() {
           {/* Chatbot Selector */}
           <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 p-5 shadow-sm">
             <Label>Select Chatbot to Train</Label>
-            <div className="relative">
-              <select
-                value={selectedChatbotId || ""}
-                onChange={(e) => setSelectedChatbotId(Number(e.target.value))}
-                className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
-              >
+            <Select
+              value={selectedChatbotId ? String(selectedChatbotId) : undefined}
+              onValueChange={(value) => setSelectedChatbotId(Number(value))}
+            >
+              <SelectTrigger className="mt-2 h-11 w-full cursor-pointer rounded-lg border-gray-300 bg-white text-left text-sm">
+                <SelectValue placeholder="Select chatbot" />
+              </SelectTrigger>
+              <SelectContent>
                 {chatbots.map((bot) => (
-                  <option key={bot.id} value={bot.id}>
+                  <SelectItem key={bot.id} value={String(bot.id)} className="cursor-pointer">
                     {bot.name} ({bot.type})
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-              <ChevronDown
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Knowledge Sources Section */}
@@ -673,22 +677,21 @@ export default function TrainingPage() {
                 <Label>
                   Knowledge Source <span className="text-red-500">*</span>
                 </Label>
-                <div className="relative">
-                  <select
-                    value=""
-                    onChange={(e) => setSelectedSourceId(Number(e.target.value))}
-                    className="w-full appearance-none px-4 py-2.5 pr-10 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
-                  >
-                    <option value="" disabled>— Select a source —</option>
+                <Select
+                  value={selectedSourceId ? String(selectedSourceId) : undefined}
+                  onValueChange={(value) => setSelectedSourceId(Number(value))}
+                >
+                  <SelectTrigger className="h-11 w-full cursor-pointer rounded-lg border-gray-300 bg-white text-left text-sm">
+                    <SelectValue placeholder="- Select a source -" />
+                  </SelectTrigger>
+                  <SelectContent>
                     {filteredSources.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
+                      <SelectItem key={s.id} value={String(s.id)} className="cursor-pointer">
+                        {s.name}
+                      </SelectItem>
                     ))}
-                  </select>
-                  <ChevronDown
-                    size={16}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                  />
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
             )}
 

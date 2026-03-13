@@ -92,6 +92,10 @@ export class IntegrationService {
     if (params?.token_type) query.set("token_type", params.token_type);
     if (params?.start_date) query.set("start_date", params.start_date);
     if (params?.end_date) query.set("end_date", params.end_date);
+    if (params?.account_page) query.set("account_page", String(params.account_page));
+    if (params?.account_page_size) query.set("account_page_size", String(params.account_page_size));
+    if (params?.chatbot_page) query.set("chatbot_page", String(params.chatbot_page));
+    if (params?.chatbot_page_size) query.set("chatbot_page_size", String(params.chatbot_page_size));
 
     const qs = query.toString();
     const url = `${INTEGRATIONS_BASE}/v1/token-usage/${qs ? `?${qs}` : ""}`;
