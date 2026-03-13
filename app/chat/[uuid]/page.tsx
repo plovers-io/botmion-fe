@@ -6,7 +6,7 @@ import { ConversationService } from "@/lib/services/conversation-service";
 import { ChatbotService } from "@/lib/services/chatbot-service";
 import { PublicChatResponse } from "@/lib/types/conversation";
 import { PublicChatbotConfig } from "@/lib/types/chatbot";
-import { Bot, Send, User, Loader2, Sparkles } from "lucide-react";
+import { Bot, Send, User, Loader2, Sparkles, Mic, Square, Volume2, X } from "lucide-react";
 
 interface ChatBubble {
   id: string | number;
@@ -28,9 +28,19 @@ export default function PublicChatPage() {
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string>("");
   const [config, setConfig] = useState<PublicChatbotConfig | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const [speakingId, setSpeakingId] = useState<string | number | null>(null);
+  const [pendingVoiceBlob, setPendingVoiceBlob] = useState<Blob | null>(null);
+  const [pendingVoiceSeconds, setPendingVoiceSeconds] = useState<number>(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const pollTimersRef = useRef<Map<string, { close: () => void }>>(new Map());
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const recordingStartedAtRef = useRef<number | null>(null);
+  const cancelRecordingRef = useRef(false);
   // Synchronous guard — React state updates are async and cannot reliably prevent
   // duplicate sends when the user presses Enter rapidly or during IME composition.
   const isSendingRef = useRef(false);
@@ -88,6 +98,16 @@ export default function PublicChatPage() {
     setSessionId(stored);
     return () => {
       pollTimersRef.current.forEach((handle) => handle.close());
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setPendingVoiceBlob(null);
     };
   }, [chatbotUuid]);
 
@@ -102,6 +122,82 @@ export default function PublicChatPage() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  const detectSpeechLanguage = (text: string) => {
+    return /[\u0980-\u09FF]/.test(text) ? "bn-BD" : "en-US";
+  };
+
+  const pickBestVoice = (voices: SpeechSynthesisVoice[], lang: string) => {
+    const normalizedLang = lang.toLowerCase();
+    const userPreferred = localStorage.getItem(
+      normalizedLang.startsWith("bn") ? "botmion_voice_bn" : "botmion_voice_en"
+    );
+
+    if (userPreferred) {
+      const explicit = voices.find((v) => v.name === userPreferred);
+      if (explicit) return explicit;
+    }
+
+    const preferredKeywords = normalizedLang.startsWith("bn")
+      ? ["bangla", "bengali", "bn-bd", "bn_in", "google"]
+      : ["en-us", "english", "google", "microsoft", "natural"];
+
+    const langMatched = voices.filter((voice) => voice.lang.toLowerCase().startsWith(normalizedLang.slice(0, 2)));
+    const prioritized = (langMatched.length ? langMatched : voices).sort((a, b) => {
+      const score = (v: SpeechSynthesisVoice) => {
+        const name = `${v.name} ${v.lang}`.toLowerCase();
+        let s = 0;
+        preferredKeywords.forEach((k, idx) => {
+          if (name.includes(k)) s += 10 - idx;
+        });
+        if (!v.localService) s += 1;
+        return s;
+      };
+      return score(b) - score(a);
+    });
+
+    return prioritized[0];
+  };
+
+  const speakText = (id: string | number, text: string) => {
+    if (!("speechSynthesis" in window) || !text.trim()) return;
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const lang = detectSpeechLanguage(text);
+    const startSpeaking = () => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      const voices = synth.getVoices();
+      const chosen = pickBestVoice(voices, lang);
+      if (chosen) {
+        utterance.voice = chosen;
+      }
+      utterance.rate = lang.startsWith("bn") ? 0.9 : 0.95;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.onend = () => setSpeakingId(null);
+      utterance.onerror = () => setSpeakingId(null);
+      setSpeakingId(id);
+      synth.speak(utterance);
+    };
+
+    if (synth.getVoices().length === 0) {
+      const onVoicesChanged = () => {
+        synth.removeEventListener("voiceschanged", onVoicesChanged);
+        startSpeaking();
+      };
+      synth.addEventListener("voiceschanged", onVoicesChanged);
+      setTimeout(() => {
+        synth.removeEventListener("voiceschanged", onVoicesChanged);
+        if (!synth.speaking) {
+          startSpeaking();
+        }
+      }, 400);
+      return;
+    }
+
+    startSpeaking();
+  };
 
   const waitForResponse = useCallback((msgUuid: string) => {
     const handle = ConversationService.streamMessage(
@@ -203,6 +299,150 @@ export default function PublicChatPage() {
       isSendingRef.current = false;
       setSending(false);
     }
+  };
+
+  const handleVoiceUpload = async (audio: Blob) => {
+    if (!sessionId || isSendingRef.current || !audio.size) return;
+    isSendingRef.current = true;
+    setVoiceBusy(true);
+
+    const typingId = `typing-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: typingId, role: "assistant", content: "", timestamp: new Date().toISOString(), status: "typing" },
+    ]);
+
+    try {
+      const response: PublicChatResponse = await ConversationService.publicAudioChat({
+        audio,
+        chatbot_uuid: chatbotUuid,
+        session_id: sessionId,
+        duration_ms: 0,
+        language_hint: navigator.language.startsWith("bn") ? "bn" : "auto",
+      });
+
+      if (response.session_id) {
+        const storageKey = `botmion_session_${chatbotUuid}`;
+        localStorage.setItem(storageKey, response.session_id);
+        setSessionId(response.session_id);
+      }
+
+      const user = response.user_message;
+      const asst = response.assistant_message;
+      setMessages((prev) =>
+        prev
+          .filter((m) => m.id !== typingId)
+          .concat({
+            id: user.id,
+            uuid: user.uuid,
+            role: "user",
+            content: user.content,
+            timestamp: user.created_at,
+            status: user.status,
+          })
+          .concat({
+            id: asst.id,
+            uuid: asst.uuid,
+            role: "assistant",
+            content: asst.content,
+            timestamp: asst.created_at,
+            status: asst.status,
+          })
+      );
+
+      if (asst.status === "processing") {
+        waitForResponse(asst.uuid);
+      }
+    } catch {
+      setMessages((prev) =>
+        prev
+          .filter((m) => m.id !== typingId)
+          .concat({
+            id: `error-${Date.now()}`,
+            role: "assistant",
+            content: "Sorry, voice input could not be processed. Please try again.",
+            timestamp: new Date().toISOString(),
+            status: "failed",
+          })
+      );
+    } finally {
+      isSendingRef.current = false;
+      setVoiceBusy(false);
+    }
+  };
+
+  const sendPendingVoice = async () => {
+    if (!pendingVoiceBlob || voiceBusy || sending) return;
+    const blob = pendingVoiceBlob;
+    setPendingVoiceBlob(null);
+    setPendingVoiceSeconds(0);
+    await handleVoiceUpload(blob);
+  };
+
+  const cancelPendingVoice = () => {
+    setPendingVoiceBlob(null);
+    setPendingVoiceSeconds(0);
+    chunksRef.current = [];
+  };
+
+  const startRecording = async () => {
+    if (recording || voiceBusy || sending) return;
+    if (!navigator.mediaDevices?.getUserMedia) return;
+
+    try {
+      setPendingVoiceBlob(null);
+      setPendingVoiceSeconds(0);
+      cancelRecordingRef.current = false;
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        if (!cancelRecordingRef.current && blob.size > 0) {
+          const startedAt = recordingStartedAtRef.current;
+          const durationMs = startedAt ? Math.max(0, Date.now() - startedAt) : 0;
+          setPendingVoiceSeconds(Math.max(1, Math.round(durationMs / 1000)));
+          setPendingVoiceBlob(blob);
+        }
+        cancelRecordingRef.current = false;
+        recordingStartedAtRef.current = null;
+      };
+
+      recorderRef.current = recorder;
+      recorder.start();
+      recordingStartedAtRef.current = Date.now();
+      setRecording(true);
+    } catch {
+      setRecording(false);
+    }
+  };
+
+  const stopRecording = (discard = false) => {
+    if (!recorderRef.current || recorderRef.current.state === "inactive") return;
+    cancelRecordingRef.current = discard;
+    recorderRef.current.stop();
+    setRecording(false);
+  };
+
+  const cancelRecording = () => {
+    stopRecording(true);
+  };
+
+  const toggleRecording = () => {
+    if (recording) {
+      stopRecording();
+      return;
+    }
+    startRecording();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -318,6 +558,16 @@ export default function PublicChatPage() {
                   <p className="text-[13px] leading-relaxed whitespace-pre-wrap">
                     {msg.content}
                   </p>
+                  {msg.role === "assistant" && msg.content && (
+                    <button
+                      onClick={() => speakText(msg.id, msg.content)}
+                      className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
+                      type="button"
+                    >
+                      <Volume2 size={12} />
+                      {speakingId === msg.id ? "Playing..." : "Play"}
+                    </button>
+                  )}
                   <p
                     className={`text-[10px] mt-1.5 tabular-nums ${
                       msg.role === "user"
@@ -351,7 +601,7 @@ export default function PublicChatPage() {
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               rows={1}
-              disabled={sending}
+              disabled={sending || voiceBusy || recording || !!pendingVoiceBlob}
               className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 disabled:opacity-50 transition-all max-h-32"
               style={{ minHeight: "40px" }}
               onInput={(e) => {
@@ -362,8 +612,29 @@ export default function PublicChatPage() {
             />
           </div>
           <button
+            type="button"
+            onClick={toggleRecording}
+            disabled={sending || voiceBusy || !!pendingVoiceBlob}
+            className={`rounded-xl h-10 w-10 shrink-0 shadow-md transition-all flex items-center justify-center cursor-pointer ${
+              recording ? "bg-red-500 text-white" : "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+            } disabled:opacity-40`}
+            title={recording ? "Stop recording" : "Start recording"}
+          >
+            {voiceBusy ? <Loader2 size={16} className="animate-spin" /> : recording ? <Square size={15} /> : <Mic size={16} />}
+          </button>
+          {recording && (
+            <button
+              type="button"
+              onClick={cancelRecording}
+              className="rounded-xl h-10 w-10 shrink-0 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300 shadow-md transition-all flex items-center justify-center cursor-pointer"
+              title="Cancel recording"
+            >
+              <X size={15} />
+            </button>
+          )}
+          <button
             onClick={handleSend}
-            disabled={!input.trim() || sending}
+            disabled={!input.trim() || sending || voiceBusy || recording || !!pendingVoiceBlob}
             className="text-white rounded-xl h-10 w-10 shrink-0 shadow-md disabled:opacity-40 transition-all flex items-center justify-center cursor-pointer"
             style={{ backgroundColor: primaryColor }}
           >
@@ -374,8 +645,38 @@ export default function PublicChatPage() {
             )}
           </button>
         </div>
+        {pendingVoiceBlob && (
+          <div className="mt-2 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/60 dark:bg-emerald-900/20">
+            <p className="text-xs text-emerald-700 dark:text-emerald-200">
+              Voice ready ({pendingVoiceSeconds}s). Send or cancel.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={cancelPendingVoice}
+                className="text-xs px-2.5 py-1 rounded-md bg-white text-gray-700 border border-gray-200 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={sendPendingVoice}
+                className="text-xs px-2.5 py-1 rounded-md text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Send Voice
+              </button>
+            </div>
+          </div>
+        )}
         <p className="text-[10px] text-gray-300 dark:text-gray-600 text-center mt-2">
-          Powered by Botmion
+          {recording
+            ? "Recording... tap stop to review voice"
+            : pendingVoiceBlob
+            ? "Voice is ready. You can send or cancel."
+            : voiceBusy
+            ? "Transcribing voice..."
+            : "Powered by Botmion"}
         </p>
       </div>
     </div>

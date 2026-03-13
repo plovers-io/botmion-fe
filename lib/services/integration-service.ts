@@ -3,6 +3,8 @@ import {
   Integration,
   IntegrationCreateRequest,
   IntegrationUpdateRequest,
+  TokenUsageAnalyticsQuery,
+  TokenUsageAnalyticsResponse,
 } from "@/lib/types/integration";
 
 const INTEGRATIONS_BASE =
@@ -76,5 +78,24 @@ export class IntegrationService {
     await apiClient.delete(
       `${INTEGRATIONS_BASE}/v1/integrations/${id}/`
     );
+  }
+
+  /**
+   * Token usage analytics for chatbot/account level tracking
+   * GET /integrations/v1/token-usage/
+   */
+  static async getTokenUsageAnalytics(
+    params?: TokenUsageAnalyticsQuery
+  ): Promise<TokenUsageAnalyticsResponse> {
+    const query = new URLSearchParams();
+    if (params?.chatbot_id) query.set("chatbot_id", String(params.chatbot_id));
+    if (params?.token_type) query.set("token_type", params.token_type);
+    if (params?.start_date) query.set("start_date", params.start_date);
+    if (params?.end_date) query.set("end_date", params.end_date);
+
+    const qs = query.toString();
+    const url = `${INTEGRATIONS_BASE}/v1/token-usage/${qs ? `?${qs}` : ""}`;
+    const response = await apiClient.get<TokenUsageAnalyticsResponse>(url);
+    return response.data;
   }
 }

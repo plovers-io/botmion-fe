@@ -20,6 +20,7 @@ import {
   User,
   Briefcase,
   Brain,
+  BarChart3,
   Sun,
   Moon,
 } from "lucide-react";
@@ -61,6 +62,11 @@ const navItems: NavItem[] = [
     label: "Conversations",
     href: "/conversations",
     icon: <MessageSquare size={20} />,
+  },
+  {
+    label: "Token Tracker",
+    href: "/token-tracker",
+    icon: <BarChart3 size={20} />,
   },
   {
     label: "Integrations",

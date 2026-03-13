@@ -33,11 +33,28 @@ export interface Conversation {
   updated_at: string;
 }
 
+/** Lightweight conversation returned by the list endpoint (only last_message, not all messages). */
+export interface ConversationListItem {
+  id: number;
+  chatbot: number;
+  title: string;
+  model_name: string;
+  chat_type: string;
+  platform: PlatformType;
+  status: ConversationStatus;
+  external_id?: string | null;
+  metadata: Record<string, unknown>;
+  last_message: Message | null;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PaginatedConversations {
   count: number;
   next: string | null;
   previous: string | null;
-  results: Conversation[];
+  results: ConversationListItem[];
 }
 
 export interface ChatMessageRequest {
@@ -53,6 +70,7 @@ export interface ChatMessageResponse {
   user_message: Message;
   assistant_message: Message;
   conversation_id: number;
+  transcript?: string;
   /** "processing" while Celery task is running, then "completed" or "failed" */
   status: "processing" | "completed" | "failed" | string;
 }
@@ -63,9 +81,29 @@ export interface PublicChatRequest {
   session_id?: string;
 }
 
+export interface ChatAudioRequest {
+  audio: Blob;
+  language_hint?: "auto" | "bn" | "en";
+  duration_ms?: number;
+  chatbot_id: number;
+  conversation_id?: number | null;
+  platform?: PlatformType;
+  external_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PublicChatAudioRequest {
+  audio: Blob;
+  chatbot_uuid: string;
+  session_id?: string;
+  language_hint?: "auto" | "bn" | "en";
+  duration_ms?: number;
+}
+
 export interface PublicChatResponse {
   user_message: Message;
   assistant_message: Message;
   conversation_id: number;
   session_id: string;
+  transcript?: string;
 }

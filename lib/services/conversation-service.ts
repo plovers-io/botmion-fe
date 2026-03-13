@@ -5,6 +5,8 @@ import {
   ChatMessageRequest,
   ChatMessageResponse,
   PublicChatRequest,
+  ChatAudioRequest,
+  PublicChatAudioRequest,
   PublicChatResponse,
 } from "@/lib/types/conversation";
 import axios from "axios";
@@ -19,10 +21,20 @@ export class ConversationService {
    */
   static async getConversations(
     page = 1,
-    pageSize = 10
+    pageSize = 10,
+    platform?: "messenger" | "whatsapp" | "slack" | "web"
   ): Promise<PaginatedConversations> {
+    const query = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+
+    if (platform) {
+      query.set("platform", platform);
+    }
+
     const response = await apiClient.get<PaginatedConversations>(
-      `${MESSAGING_BASE}/v1/conversations/?page=${page}&page_size=${pageSize}`
+      `${MESSAGING_BASE}/v1/conversations/?${query.toString()}`
     );
     return response.data;
   }
@@ -57,6 +69,37 @@ export class ConversationService {
     const response = await apiClient.post<ChatMessageResponse>(
       `${MESSAGING_BASE}/v1/chat/`,
       data
+    );
+    return response.data;
+  }
+
+  /**
+   * Send an audio message (authenticated — owner testing)
+   * POST /messaging/v1/chat/audio/
+   */
+  static async sendAudioMessage(
+    data: ChatAudioRequest
+  ): Promise<ChatMessageResponse> {
+    const formData = new FormData();
+    formData.append("audio", data.audio, "voice.webm");
+    formData.append("chatbot_id", String(data.chatbot_id));
+    formData.append("language_hint", data.language_hint || "auto");
+    if (data.conversation_id != null) {
+      formData.append("conversation_id", String(data.conversation_id));
+    }
+    if (data.platform) formData.append("platform", data.platform);
+    if (data.external_id) formData.append("external_id", data.external_id);
+    if (typeof data.duration_ms === "number") {
+      formData.append("duration_ms", String(data.duration_ms));
+    }
+    if (data.metadata) {
+      formData.append("metadata", JSON.stringify(data.metadata));
+    }
+
+    const response = await apiClient.post<ChatMessageResponse>(
+      `${MESSAGING_BASE}/v1/chat/audio/`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
     );
     return response.data;
   }
@@ -113,6 +156,30 @@ export class ConversationService {
     const response = await axios.post<PublicChatResponse>(
       `${MESSAGING_BASE}/v1/public/chat/`,
       data
+    );
+    return response.data;
+  }
+
+  /**
+   * Public audio chat (no auth — end-user widget)
+   * POST /messaging/v1/public/chat/audio/
+   */
+  static async publicAudioChat(
+    data: PublicChatAudioRequest
+  ): Promise<PublicChatResponse> {
+    const formData = new FormData();
+    formData.append("audio", data.audio, "voice.webm");
+    formData.append("chatbot_uuid", data.chatbot_uuid);
+    formData.append("language_hint", data.language_hint || "auto");
+    if (data.session_id) formData.append("session_id", data.session_id);
+    if (typeof data.duration_ms === "number") {
+      formData.append("duration_ms", String(data.duration_ms));
+    }
+
+    const response = await axios.post<PublicChatResponse>(
+      `${MESSAGING_BASE}/v1/public/chat/audio/`,
+      formData,
+      { headers: { "Content-Type": "multipart/form-data" } }
     );
     return response.data;
   }

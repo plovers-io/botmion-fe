@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ConversationService } from "@/lib/services/conversation-service";
 import { ChatbotService } from "@/lib/services/chatbot-service";
-import { Conversation } from "@/lib/types/conversation";
+import { Conversation, ConversationListItem, PlatformType } from "@/lib/types/conversation";
 import { Chatbot } from "@/lib/types/chatbot";
 import { goeyToast as toast } from "goey-toast";
 import {
@@ -28,34 +28,46 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   closed: { label: "Closed", color: "bg-gray-100 text-gray-500" },
 };
 
+const PLATFORM_OPTIONS: Array<{ value: PlatformType | "all"; label: string }> = [
+  { value: "all", label: "All Platforms" },
+  { value: "web", label: "Web" },
+  { value: "messenger", label: "Messenger" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "slack", label: "Slack" },
+];
+
 export default function ConversationsPage() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ConversationListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
+  const [platformFilter, setPlatformFilter] = useState<PlatformType | "all">("all");
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const selectedPlatform = platformFilter === "all" ? undefined : platformFilter;
       const [convData, botData] = await Promise.all([
-        ConversationService.getConversations(1, 20),
+        ConversationService.getConversations(1, 20, selectedPlatform),
         ChatbotService.getChatbots(),
       ]);
       setConversations(convData.results || []);
       setTotalCount(convData.count || 0);
       setChatbots(botData);
+      setPage(1);
+      setSelectedConversation(null);
     } catch {
       setConversations([]);
       setChatbots([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [platformFilter]);
 
   useEffect(() => {
     loadData();
@@ -64,7 +76,8 @@ export default function ConversationsPage() {
   const loadMore = async () => {
     const nextPage = page + 1;
     try {
-      const data = await ConversationService.getConversations(nextPage, 20);
+      const selectedPlatform = platformFilter === "all" ? undefined : platformFilter;
+      const data = await ConversationService.getConversations(nextPage, 20, selectedPlatform);
       setConversations((prev) => [...prev, ...(data.results || [])]);
       setPage(nextPage);
     } catch {
@@ -72,7 +85,7 @@ export default function ConversationsPage() {
     }
   };
 
-  const handleViewConversation = async (conv: Conversation) => {
+  const handleViewConversation = async (conv: ConversationListItem) => {
     setDetailLoading(true);
     try {
       const full = await ConversationService.getConversation(conv.id);
@@ -121,19 +134,42 @@ export default function ConversationsPage() {
 
   return (
     <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <MessageSquare className="text-white" size={20} />
-          </div>
-          Conversations
-        </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
-          View and manage chat conversations across your chatbots.
-          {totalCount > 0 && (
-            <span className="ml-2 text-emerald-600 font-medium">{totalCount} total</span>
-          )}
-        </p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <MessageSquare className="text-white" size={20} />
+            </div>
+            Conversations
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
+            View and manage chat conversations across your chatbots.
+            {totalCount > 0 && (
+              <span className="ml-2 text-emerald-600 font-medium">{totalCount} total</span>
+            )}
+          </p>
+        </div>
+
+        <div className="w-full sm:w-auto">
+          <label
+            htmlFor="platform-filter"
+            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
+          >
+            Filter by platform
+          </label>
+          <select
+            id="platform-filter"
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value as PlatformType | "all")}
+            className="h-10 min-w-[180px] w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+          >
+            {PLATFORM_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {conversations.length === 0 ? (
@@ -157,7 +193,7 @@ export default function ConversationsPage() {
           <div className="lg:col-span-1 space-y-3">
             {conversations.map((conv) => {
               const stat = statusConfig[conv.status] || statusConfig.open;
-              const lastMsg = conv.messages?.[0];
+              const lastMsg = conv.last_message;
               const isSelected = selectedConversation?.id === conv.id;
 
               return (
@@ -180,6 +216,9 @@ export default function ConversationsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {conv.platform}
+                      </Badge>
                       <Badge variant="secondary" className={`text-[10px] ${stat.color}`}>
                         {stat.label}
                       </Badge>

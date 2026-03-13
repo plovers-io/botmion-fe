@@ -6,6 +6,7 @@ import {
   MessageSquare,
   Plug,
   CreditCard,
+  BarChart3,
   ArrowUpRight,
   Sparkles,
   Mail,
@@ -41,6 +42,15 @@ const quickLinks = [
     gradient: "from-orange-500 to-amber-400",
     bg: "bg-orange-50 dark:bg-orange-500/10",
     iconColor: "text-orange-600 dark:text-orange-400",
+  },
+  {
+    label: "Token Tracker",
+    href: "/token-tracker",
+    icon: <BarChart3 size={22} />,
+    description: "Monitor input/output token usage",
+    gradient: "from-cyan-500 to-blue-500",
+    bg: "bg-cyan-50 dark:bg-cyan-500/10",
+    iconColor: "text-cyan-600 dark:text-cyan-400",
   },
   {
     label: "Subscription",
@@ -86,7 +96,7 @@ const HomePage = () => {
       {/* Quick Links */}
       <div className="mb-10">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4">Quick Access</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 stagger-children">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 stagger-children">
           {quickLinks.map((link) => (
             <Link key={link.href} href={link.href} className="group">
               <Card className="card-hover border-gray-100/80 dark:border-gray-700/50 bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm overflow-hidden h-full">

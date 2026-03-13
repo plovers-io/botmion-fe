@@ -32,3 +32,59 @@ export interface IntegrationUpdateRequest {
   config?: Partial<MessengerConfig> | Record<string, unknown>;
   is_active?: boolean;
 }
+
+export type TokenTypeFilter = "input" | "output" | "total";
+
+export interface TokenUsageAccountBreakdown {
+  account_user_id: number | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  request_count: number;
+}
+
+export interface TokenUsageChatbotBreakdown {
+  chatbot_id: number;
+  chatbot__name: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  request_count: number;
+}
+
+export interface TokenUsageTimeSeriesPoint {
+  date: string;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  request_count: number;
+  selected_tokens: number;
+}
+
+export interface TokenUsageAnalyticsResponse {
+  filters: {
+    chatbot_id: number | null;
+    token_type: TokenTypeFilter;
+    start_date: string | null;
+    end_date: string | null;
+  };
+  summary: {
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+    request_count: number;
+  };
+  account_breakdown: TokenUsageAccountBreakdown[];
+  chatbot_breakdown: TokenUsageChatbotBreakdown[];
+  timeseries: TokenUsageTimeSeriesPoint[];
+}
+
+export interface TokenUsageAnalyticsQuery {
+  chatbot_id?: number;
+  token_type?: TokenTypeFilter;
+  start_date?: string;
+  end_date?: string;
+}
