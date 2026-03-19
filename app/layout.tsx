@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Next.js App",
+  title: "Botmion - AI Chatbot Platform",
   description: "Modern Next.js application with App Router",
 };
 

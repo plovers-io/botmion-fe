@@ -8,10 +8,9 @@ import {
   Plus,
   CheckCircle2,
   XCircle,
-  ExternalLink,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,6 @@ import { IntegrationService } from "@/lib/services/integration-service";
 import { ChatbotService } from "@/lib/services/chatbot-service";
 import type {
   Integration,
-  IntegrationCreateRequest,
 } from "@/lib/types/integration";
 import type { Chatbot } from "@/lib/types/chatbot";
 import { goeyToast as toast } from "goey-toast";
@@ -107,14 +105,11 @@ export default function IntegrationsPage() {
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
 
   // Form fields
   const [selectedChatbotId, setSelectedChatbotId] = useState<number | "">("");
-  const [pageId, setPageId] = useState("");
-  const [pageName, setPageName] = useState("");
-  const [pageAccessToken, setPageAccessToken] = useState("");
 
   // ─── Load data ──────────────────────────────────────────────────────
 
@@ -140,37 +135,27 @@ export default function IntegrationsPage() {
 
   // ─── Create integration ─────────────────────────────────────────────
 
-  const handleCreate = async () => {
-    if (!selectedChatbotId || !pageId.trim() || !pageAccessToken.trim()) {
-      toast.error("Missing fields", { description: "Please fill in all required fields" });
+  const handleStartOAuth = async () => {
+    if (!selectedChatbotId) {
+      toast.error("Missing chatbot", { description: "Please select a chatbot first" });
       return;
     }
 
-    setSubmitting(true);
+    setOauthLoading(true);
     try {
-      const payload: IntegrationCreateRequest = {
-        chatbot: Number(selectedChatbotId),
-        platform: "messenger",
-        config: {
-          page_id: pageId.trim(),
-          page_name: pageName.trim() || undefined,
-          page_access_token: pageAccessToken.trim(),
-        },
-      };
+      const redirectUri = `${window.location.origin}/integrations/messenger/callback`;
+      const response = await IntegrationService.getMessengerOAuthURL({
+        chatbot_id: Number(selectedChatbotId),
+        redirect_uri: redirectUri,
+      });
 
-      await IntegrationService.createIntegration(payload);
-      toast.success("Connected!", { description: "Messenger integration created successfully" });
-      resetForm();
-      loadData();
+      window.location.href = response.authorization_url;
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { detail?: string; config?: string[] } } };
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.config?.[0] ||
-        "Failed to create integration";
+      const err = error as { message?: string };
+      const msg = err?.message || "Failed to start Facebook OAuth";
       toast.error("Error", { description: msg });
     } finally {
-      setSubmitting(false);
+      setOauthLoading(false);
     }
   };
 
@@ -194,9 +179,6 @@ export default function IntegrationsPage() {
   const resetForm = () => {
     setShowForm(false);
     setSelectedChatbotId("");
-    setPageId("");
-    setPageName("");
-    setPageAccessToken("");
   };
 
   // ─── Connected messenger integrations ───────────────────────────────
@@ -210,7 +192,7 @@ export default function IntegrationsPage() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <Plug className="text-white" size={20} />
           </div>
           Integrations
@@ -238,7 +220,7 @@ export default function IntegrationsPage() {
                   <Button
                     onClick={() => setShowForm(true)}
                     size="sm"
-                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                    className="bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
                   >
                     <Plus size={14} />
                     Connect Page
@@ -277,67 +259,30 @@ export default function IntegrationsPage() {
                       </select>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Page ID *</Label>
-                        <Input
-                          value={pageId}
-                          onChange={(e) => setPageId(e.target.value)}
-                          placeholder="e.g. 123456789012345"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Page Name</Label>
-                        <Input
-                          value={pageName}
-                          onChange={(e) => setPageName(e.target.value)}
-                          placeholder="My Business Page"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Page Access Token *</Label>
-                      <Input
-                        value={pageAccessToken}
-                        onChange={(e) => setPageAccessToken(e.target.value)}
-                        placeholder="EAAGm0PX4ZCps..."
-                        type="password"
-                      />
-                      <p className="text-xs text-gray-400">
-                        Get this from{" "}
-                        <a
-                          href="https://developers.facebook.com/tools/explorer/"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline inline-flex items-center gap-0.5"
-                        >
-                          Graph API Explorer
-                          <ExternalLink size={10} />
-                        </a>{" "}
-                        or your App Dashboard. Use a long-lived token for production.
-                      </p>
-                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      After selecting chatbot, you will be redirected to Facebook to authorize and select pages.
+                      Page ID and access token will be filled automatically.
+                    </p>
 
                     <div className="flex items-center gap-3 pt-2">
                       <Button
-                        onClick={handleCreate}
-                        disabled={submitting || !selectedChatbotId || !pageId.trim() || !pageAccessToken.trim()}
+                        onClick={handleStartOAuth}
+                        disabled={oauthLoading || !selectedChatbotId}
                         size="sm"
                         className="bg-blue-600 hover:bg-blue-700"
                       >
-                        {submitting ? (
+                        {oauthLoading ? (
                           <Loader2 className="animate-spin" size={14} />
                         ) : (
-                          <CheckCircle2 size={14} />
+                          <LogIn size={14} />
                         )}
-                        {submitting ? "Connecting..." : "Create Integration"}
+                        {oauthLoading ? "Redirecting..." : "Continue with Facebook"}
                       </Button>
                       <Button
                         onClick={resetForm}
                         variant="ghost"
                         size="sm"
-                        disabled={submitting}
+                        disabled={oauthLoading}
                       >
                         Cancel
                       </Button>

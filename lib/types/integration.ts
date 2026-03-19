@@ -8,6 +8,28 @@ export interface MessengerConfig {
   page_access_token: string;
 }
 
+export interface MessengerOAuthPage {
+  page_id: string;
+  page_name: string;
+  page_access_token: string;
+}
+
+export interface MessengerOAuthStartResponse {
+  authorization_url: string;
+  expires_in: number;
+}
+
+export interface MessengerOAuthExchangeRequest {
+  code: string;
+  state: string;
+  redirect_uri: string;
+}
+
+export interface MessengerOAuthExchangeResponse {
+  chatbot_id: number;
+  pages: MessengerOAuthPage[];
+}
+
 export interface Integration {
   id: number;
   uuid: string;

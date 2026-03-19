@@ -5,6 +5,9 @@ import {
   IntegrationUpdateRequest,
   TokenUsageAnalyticsQuery,
   TokenUsageAnalyticsResponse,
+  MessengerOAuthStartResponse,
+  MessengerOAuthExchangeRequest,
+  MessengerOAuthExchangeResponse,
 } from "@/lib/types/integration";
 
 const INTEGRATIONS_BASE =
@@ -50,6 +53,38 @@ export class IntegrationService {
   ): Promise<Integration> {
     const response = await apiClient.post<Integration>(
       `${INTEGRATIONS_BASE}/v1/integrations/`,
+      data
+    );
+    return response.data;
+  }
+
+  /**
+   * Start Messenger OAuth flow
+   * GET /integrations/v1/integrations/messenger/oauth/url/
+   */
+  static async getMessengerOAuthURL(params: {
+    chatbot_id: number;
+    redirect_uri: string;
+  }): Promise<MessengerOAuthStartResponse> {
+    const query = new URLSearchParams();
+    query.set("chatbot_id", String(params.chatbot_id));
+    query.set("redirect_uri", params.redirect_uri);
+
+    const response = await apiClient.get<MessengerOAuthStartResponse>(
+      `${INTEGRATIONS_BASE}/v1/integrations/messenger/oauth/url/?${query.toString()}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Exchange Messenger OAuth code and get selectable Facebook pages
+   * POST /integrations/v1/integrations/messenger/oauth/exchange/
+   */
+  static async exchangeMessengerOAuthCode(
+    data: MessengerOAuthExchangeRequest
+  ): Promise<MessengerOAuthExchangeResponse> {
+    const response = await apiClient.post<MessengerOAuthExchangeResponse>(
+      `${INTEGRATIONS_BASE}/v1/integrations/messenger/oauth/exchange/`,
       data
     );
     return response.data;
