@@ -7,6 +7,28 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/user";
 
 /**
+ * Detects DRF field-level validation errors: { field: ["msg", ...], ... }
+ * Returns the errors map, or null if the response is not in that shape.
+ */
+function parseDRFErrors(data: unknown): Record<string, string[]> | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const record = data as Record<string, unknown>;
+  // Skip objects that already have a top-level detail/message key
+  if ("detail" in record || "message" in record) return null;
+  const isFieldErrors = Object.values(record).every(
+    (v) => Array.isArray(v) && v.every((s) => typeof s === "string")
+  );
+  return isFieldErrors ? (record as Record<string, string[]>) : null;
+}
+
+/** Formats field-level errors into a single readable string. */
+function formatFieldErrors(errors: Record<string, string[]>): string {
+  return Object.entries(errors)
+    .map(([field, msgs]) => `${field}: ${msgs.join(", ")}`)
+    .join("; ");
+}
+
+/**
  * Helper to read tokens from the zustand persisted store.
  * This avoids direct localStorage access and keeps tokens in a single source of truth.
  */
@@ -123,15 +145,20 @@ class ApiClient {
           }
         }
 
+        const responseData = error.response?.data as any;
+        const fieldErrors = parseDRFErrors(responseData);
         const apiError: ApiError = {
           status: error.response?.status || 500,
           message:
-            (error.response?.data as any)?.detail ||
-            (error.response?.data as any)?.message ||
+            responseData?.detail ||
+            responseData?.message ||
+            responseData?.non_field_errors?.[0] ||
+            (fieldErrors ? formatFieldErrors(fieldErrors) : null) ||
             error.message ||
             "An error occurred",
           code: error.code,
-          detail: (error.response?.data as any)?.detail,
+          detail: responseData?.detail,
+          errors: fieldErrors ?? undefined,
         };
         return Promise.reject(apiError);
       },

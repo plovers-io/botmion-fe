@@ -6,6 +6,9 @@ import {
   DocumentCreateRequest,
   ChunkingRequest,
   ChunkingResponse,
+  ImageDocument,
+  ImageDocumentCreateRequest,
+  PaginatedImageDocuments,
 } from "@/lib/types/training";
 
 const BOTS_BASE =
@@ -76,18 +79,38 @@ export class TrainingService {
   // ─── Documents ──────────────────────────────────────────────────────
 
   /**
-   * List all documents
-   * GET /bots/v1/documents/
+   * List all documents (optionally filtered by source_id)
+   * GET /bots/v1/documents/?source_id=<id>
    */
-  static async getDocuments(): Promise<Document[]> {
+  static async getDocuments(sourceId?: number): Promise<Document[]> {
+    const params = sourceId ? `?source_id=${sourceId}` : "";
     const response = await apiClient.get<Document[]>(
-      `${BOTS_BASE}/v1/documents/`
+      `${BOTS_BASE}/v1/documents/${params}`
     );
     return response.data;
   }
 
   /**
-   * Create a document (file upload or raw text)
+   * Get a single document by ID
+   * GET /bots/v1/documents/:id/
+   */
+  static async getDocument(id: number): Promise<Document> {
+    const response = await apiClient.get<Document>(
+      `${BOTS_BASE}/v1/documents/${id}/`
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete a document
+   * DELETE /bots/v1/documents/:id/
+   */
+  static async deleteDocument(id: number): Promise<void> {
+    await apiClient.delete(`${BOTS_BASE}/v1/documents/${id}/`);
+  }
+
+  /**
+   * Create a document (file upload, raw text, URL, or Q&A pairs)
    * POST /bots/v1/documents/
    */
   static async createDocument(data: DocumentCreateRequest): Promise<Document> {
@@ -96,6 +119,8 @@ export class TrainingService {
     formData.append("title", data.title);
     if (data.raw_text) formData.append("raw_text", data.raw_text);
     if (data.file) formData.append("file", data.file);
+    if (data.url) formData.append("url", data.url);
+    if (data.qa_pairs) formData.append("qa_pairs", JSON.stringify(data.qa_pairs));
 
     const response = await apiClient.post<Document>(
       `${BOTS_BASE}/v1/documents/`,
@@ -123,4 +148,64 @@ export class TrainingService {
     );
     return response.data;
   }
+
+  // ─── Image Documents ───────────────────────────────────────────────
+
+  /**
+   * List image documents (paginated in backend)
+   * GET /bots/v1/image-documents/
+   */
+  static async getImageDocuments(pageSize = 100): Promise<ImageDocument[]> {
+    const response = await apiClient.get<PaginatedImageDocuments | ImageDocument[]>(
+      `${BOTS_BASE}/v1/image-documents/?page_size=${pageSize}`
+    );
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return response.data.results || [];
+  }
+
+  /**
+   * Create a new image document
+   * POST /bots/v1/image-documents/
+   */
+  static async createImageDocument(data: ImageDocumentCreateRequest): Promise<ImageDocument> {
+    const formData = new FormData();
+    formData.append("source_id", String(data.source_id));
+    formData.append("title", data.title);
+    formData.append("image_file", data.image_file);
+    if (data.metadata && Object.keys(data.metadata).length > 0) {
+      formData.append("metadata", JSON.stringify(data.metadata));
+    }
+
+    const response = await apiClient.post<ImageDocument>(
+      `${BOTS_BASE}/v1/image-documents/`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete an image document
+   * DELETE /bots/v1/image-documents/:id/
+   */
+  static async deleteImageDocument(id: number): Promise<void> {
+    await apiClient.delete(`${BOTS_BASE}/v1/image-documents/${id}/`);
+  }
+
+  /**
+   * Trigger image embedding processing
+   * POST /bots/v1/image-documents/:id/process/
+   */
+  static async processImageDocument(id: number): Promise<{ status: string; message: string }> {
+    const response = await apiClient.post<{ status: string; message: string }>(
+      `${BOTS_BASE}/v1/image-documents/${id}/process/`,
+      {}
+    );
+    return response.data;
+  }
 }
+

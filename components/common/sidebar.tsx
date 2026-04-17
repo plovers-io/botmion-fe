@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUiStore } from "@/lib/store/ui-store";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
+import { useTheme } from "@/components/common/theme-provider";
 import { AuthService } from "@/lib/services/auth-service";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import {
   LayoutDashboard,
   Bot,
@@ -16,11 +17,19 @@ import {
   Settings,
   LogOut,
   Menu,
-  X,
   User,
-  Building2,
+  Briefcase,
   Brain,
+  BarChart3,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface NavItem {
   label: string;
@@ -35,9 +44,9 @@ const navItems: NavItem[] = [
     icon: <LayoutDashboard size={20} />,
   },
   {
-    label: "Company",
-    href: "/company",
-    icon: <Building2 size={20} />,
+    label: "Workspace",
+    href: "/workspace",
+    icon: <Briefcase size={20} />,
   },
   {
     label: "Chatbots",
@@ -53,6 +62,16 @@ const navItems: NavItem[] = [
     label: "Conversations",
     href: "/conversations",
     icon: <MessageSquare size={20} />,
+  },
+  {
+    label: "Conversation Analytics",
+    href: "/conversations/analytics",
+    icon: <BarChart3 size={20} />,
+  },
+  {
+    label: "Token Tracker",
+    href: "/token-tracker",
+    icon: <BarChart3 size={20} />,
   },
   {
     label: "Integrations",
@@ -74,6 +93,7 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const sidebarOpen = useUiStore((state) => state.sidebarOpen);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
@@ -86,11 +106,11 @@ export function AppSidebar() {
         await AuthService.logout(refreshToken);
       }
       logout();
-      toast.success("Logged out successfully");
+      toast.success("Logged Out", { description: "You have been signed out successfully" });
       router.push("/auth/login");
     } catch {
       logout();
-      toast.info("Logged out locally");
+      toast.info("Logged Out", { description: "Signed out from this device" });
       router.push("/auth/login");
     } finally {
       setLoggingOut(false);
@@ -104,93 +124,118 @@ export function AppSidebar() {
     return pathname.startsWith(href);
   };
 
+  const toggleTheme = () => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  };
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-[#0f1225] text-gray-300">
+      {/* Brand / Logo */}
+      <div className="h-16 flex items-center px-5 border-b border-white/[0.06]">
+        <Link href="/home" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow">
+            <Bot size={18} className="text-white" />
+          </div>
+          <span className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Botmion</span>
+        </Link>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto no-scrollbar">
+        <p className="px-3 mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+          Menu
+        </p>
+        {navItems.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => {
+                if (window.innerWidth < 1024) {
+                  setSidebarOpen(false);
+                }
+              }}
+              className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                active
+                  ? "bg-emerald-500/15 text-emerald-400 shadow-sm"
+                  : "text-gray-400 hover:bg-white/[0.05] hover:text-gray-200"
+              }`}
+            >
+              <span className={`transition-colors duration-200 ${active ? "text-emerald-400" : "text-gray-500 group-hover:text-gray-300"}`}>
+                {item.icon}
+              </span>
+              {item.label}
+              {active && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Bottom section */}
+      <div className="p-3 space-y-2 border-t border-white/[0.06]">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-gray-400 hover:bg-white/[0.05] hover:text-gray-200 transition-all duration-200 cursor-pointer"
+        >
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          {theme === "dark" ? "Light Mode" : "Dark Mode"}
+        </button>
+
+        {/* User info */}
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.04]">
+          <div className="w-9 h-9 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center flex-shrink-0 ring-1 ring-emerald-500/20">
+            <User size={15} className="text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-200 truncate">
+              {user?.first_name} {user?.last_name}
+            </p>
+            <p className="text-[11px] text-gray-500 truncate">{user?.email}</p>
+          </div>
+        </div>
+
+        {/* Logout button */}
+        <Button
+          onClick={handleLogout}
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-gray-500 hover:text-red-400 hover:bg-red-500/10"
+        >
+          <LogOut size={16} />
+          Sign Out
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {/* Mobile toggle button */}
-      <button
+      <Button
         onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-md hover:bg-gray-100 lg:hidden"
+        variant="outline"
+        size="icon"
+        className="fixed top-4 left-4 z-50 lg:hidden bg-white/80 dark:bg-gray-800/80 backdrop-blur-md shadow-lg border-gray-200/60 dark:border-gray-700/60"
         aria-label="Toggle sidebar"
       >
-        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
+        <Menu size={20} />
+      </Button>
 
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/30 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* Mobile sidebar using Sheet */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-64 p-0 flex flex-col lg:hidden border-r-0 bg-[#0f1225]">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex flex-col z-40 transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
-      >
-        {/* Brand / Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
-          <Link href="/home" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
-              <Bot size={18} className="text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">Botmion</span>
-          </Link>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => {
-                  if (window.innerWidth < 1024) {
-                    setSidebarOpen(false);
-                  }
-                }}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  active
-                    ? "bg-violet-50 text-violet-700 border border-violet-200"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
-              >
-                <span className={active ? "text-violet-600" : "text-gray-400"}>
-                  {item.icon}
-                </span>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* User info & Logout at bottom */}
-        <div className="border-t border-gray-200 p-3 space-y-2">
-          {/* User info */}
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <User size={16} className="text-gray-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.first_name} {user?.last_name}
-              </p>
-              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-            </div>
-          </div>
-
-          {/* Logout button */}
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-          >
-            <LogOut size={20} />
-            Logout
-          </button>
-        </div>
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 border-r border-white/[0.06] flex-col z-40">
+        <SidebarContent />
       </aside>
     </>
   );

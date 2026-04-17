@@ -44,6 +44,8 @@ export interface ApiError {
   message: string;
   code?: string;
   detail?: string;
+  /** Raw DRF field-level validation errors, e.g. { title: ["This field is required."] } */
+  errors?: Record<string, string[]>;
 }
 
 // Async request state

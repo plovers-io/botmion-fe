@@ -105,12 +105,12 @@ export function ConfirmModal({
     danger:
       "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm shadow-red-200",
     primary:
-      "bg-violet-600 text-white hover:bg-violet-700 focus:ring-violet-500 shadow-sm shadow-violet-200",
+      "bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 shadow-sm shadow-emerald-200",
   };
 
   const iconBgStyles = {
     danger: "bg-red-50 border border-red-100",
-    primary: "bg-violet-50 border border-violet-100",
+    primary: "bg-emerald-50 border border-emerald-100",
   };
 
   return (

@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
-import { userService } from "@/lib/services/user-service";
 import { AuthService } from "@/lib/services/auth-service";
-import { toast } from "react-toastify";
+import { goeyToast as toast } from "goey-toast";
 import { Settings, User, Lock, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 export default function SettingsPage() {
   const { user, setUser } = useAuthStore();
@@ -26,14 +30,12 @@ export default function SettingsPage() {
 
     setSavingProfile(true);
     try {
-      const response = await userService.updateUser(user.id, {
-        first_name: firstName,
-        last_name: lastName,
-      });
+      // TODO: Backend profile update endpoint not available yet.
+      // For now, only update the local auth store.
       setUser({ ...user, first_name: firstName, last_name: lastName });
-      toast.success("Profile updated successfully!");
+      toast.success("Profile Updated", { description: "Your profile changes have been saved locally" });
     } catch (error: any) {
-      toast.error(error?.message || "Failed to update profile");
+      toast.error("Update Failed", { description: error?.message || "Failed to update profile" });
     } finally {
       setSavingProfile(false);
     }
@@ -41,15 +43,15 @@ export default function SettingsPage() {
 
   const handleUpdatePassword = async () => {
     if (!newPassword || !currentPassword) {
-      toast.error("Please fill in all password fields");
+      toast.error("Validation Error", { description: "Please fill in all password fields" });
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match");
+      toast.error("Validation Error", { description: "New passwords do not match" });
       return;
     }
     if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters long");
+      toast.error("Validation Error", { description: "Password must be at least 8 characters long" });
       return;
     }
 
@@ -58,13 +60,14 @@ export default function SettingsPage() {
       await AuthService.changePassword({
         old_password: currentPassword,
         new_password: newPassword,
+        confirm_password: confirmPassword,
       });
-      toast.success("Password updated successfully!");
+      toast.success("Password Updated", { description: "Your password has been changed successfully" });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (error: any) {
-      toast.error(error?.message || "Failed to update password");
+      toast.error("Update Failed", { description: error?.message || "Failed to update password" });
     } finally {
       setUpdatingPassword(false);
     }
@@ -73,139 +76,132 @@ export default function SettingsPage() {
   return (
     <div className="p-6 lg:p-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2">
-          <Settings className="text-violet-600" size={28} />
+        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <Settings className="text-white" size={20} />
+          </div>
           Settings
         </h1>
-        <p className="text-gray-500 mt-1">
+        <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">
           Manage your account and workspace settings.
         </p>
       </div>
 
       {/* Profile Section */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6">
-        <div className="flex items-center gap-3 mb-6">
-          <User size={20} className="text-violet-600" />
-          <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
-        </div>
-
-        <div className="space-y-4">
+      <Card className="mb-6 bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm border-gray-100 dark:border-gray-700/50 shadow-sm animate-fade-in-up">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-500/15 dark:to-teal-500/15 rounded-lg flex items-center justify-center">
+              <User size={16} className="text-emerald-600 dark:text-emerald-400" />
+            </div>
+            Profile
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name
-              </label>
-              <input
-                type="text"
+            <div className="space-y-2">
+              <Label htmlFor="first-name">First Name</Label>
+              <Input
+                id="first-name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
                 placeholder="First name"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name
-              </label>
-              <input
-                type="text"
+            <div className="space-y-2">
+              <Label htmlFor="last-name">Last Name</Label>
+              <Input
+                id="last-name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
                 placeholder="Last name"
               />
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
               type="email"
               defaultValue={user?.email || ""}
               disabled
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-500"
+              className="bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400"
             />
           </div>
-          <button
+          <Button
             onClick={handleSaveProfile}
             disabled={savingProfile}
-            className="px-4 py-2 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25"
           >
             {savingProfile ? (
-              <span className="flex items-center gap-2">
+              <>
                 <Loader2 className="animate-spin" size={14} />
                 Saving...
-              </span>
+              </>
             ) : (
               "Save Changes"
             )}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Change Password Section */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Lock size={20} className="text-violet-600" />
-          <h2 className="text-lg font-semibold text-gray-900">
+      <Card className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm border-gray-100 dark:border-gray-700/50 shadow-sm" style={{ animationDelay: '100ms' }}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-500/15 dark:to-teal-500/15 rounded-lg flex items-center justify-center">
+              <Lock size={16} className="text-emerald-600 dark:text-emerald-400" />
+            </div>
             Change Password
-          </h2>
-        </div>
-
-        <div className="space-y-4 max-w-md">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Current Password
-            </label>
-            <input
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <Label htmlFor="current-password">Current Password</Label>
+            <Input
+              id="current-password"
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
               placeholder="Enter current password"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              New Password
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="new-password">New Password</Label>
+            <Input
+              id="new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
               placeholder="Enter new password"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm New Password
-            </label>
-            <input
+          <div className="space-y-2">
+            <Label htmlFor="confirm-password">Confirm New Password</Label>
+            <Input
+              id="confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none"
               placeholder="Confirm new password"
             />
           </div>
-          <button
+          <Button
             onClick={handleUpdatePassword}
             disabled={updatingPassword}
-            className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="default"
           >
             {updatingPassword ? (
-              <span className="flex items-center gap-2">
+              <>
                 <Loader2 className="animate-spin" size={14} />
                 Updating...
-              </span>
+              </>
             ) : (
               "Update Password"
             )}
-          </button>
-        </div>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

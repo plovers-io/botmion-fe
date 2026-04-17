@@ -2,8 +2,9 @@
 
 import React, { ReactNode } from "react";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { GoeyToaster } from "goey-toast";
+import "goey-toast/styles.css";
+import { ThemeProvider, useTheme } from "@/components/common/theme-provider";
 
 /**
  * React Query Provider
@@ -22,22 +23,26 @@ const queryClient = new QueryClient({
   },
 });
 
+function ThemedToaster() {
+  const { resolvedTheme } = useTheme();
+  return (
+    <GoeyToaster
+      position="top-right"
+      duration={3000}
+      theme={resolvedTheme}
+      offset="20px"
+      gap={12}
+    />
+  );
+}
+
 export function ReactQueryProvider({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
-      {children}
+      <ThemeProvider>
+        <ThemedToaster />
+        {children}
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
