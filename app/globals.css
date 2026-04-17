@@ -128,6 +128,16 @@
 }
 
 @layer utilities {
+  /* Keep scrolling behavior while hiding visual scrollbar chrome. */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   /* ─── Keyframes ───────────────────────────────────────────────────────── */
   @keyframes fadeInUp {
     from { opacity: 0.2; transform: translateY(10px); }

@@ -10,6 +10,9 @@ export interface Message {
   uuid: string;
   role: MessageRole;
   content: string;
+  message_type?: "text" | "image" | "mixed";
+  image_file?: string | null;
+  image_caption?: string;
   status: ChatMessageStatus;
   is_streamed: boolean;
   finish_reason: string;
@@ -58,7 +61,8 @@ export interface PaginatedConversations {
 }
 
 export interface ChatMessageRequest {
-  content: string;
+  content?: string;
+  image_file?: File;
   chatbot_id: number;
   conversation_id?: number | null;
   platform?: PlatformType;
@@ -106,4 +110,45 @@ export interface PublicChatResponse {
   conversation_id: number;
   session_id: string;
   transcript?: string;
+}
+
+export interface ConversationAnalyticsQuery {
+  chatbot_id?: number;
+  platform?: PlatformType;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface ConversationAnalyticsResponse {
+  filters: {
+    chatbot_id: number | null;
+    platform: PlatformType | null;
+    start_date: string | null;
+    end_date: string | null;
+  };
+  summary: {
+    total_conversations: number;
+    active_conversations: number;
+    total_messages: number;
+    avg_messages_per_conversation: number;
+  };
+  platform_breakdown: Array<{
+    platform: PlatformType;
+    total: number;
+  }>;
+  status_breakdown: Array<{
+    status: ConversationStatus;
+    total: number;
+  }>;
+  chatbot_breakdown: Array<{
+    chatbot_id: number;
+    chatbot__name: string;
+    conversation_count: number;
+    message_count: number;
+  }>;
+  timeseries: Array<{
+    date: string;
+    conversation_count: number;
+    message_count: number;
+  }>;
 }

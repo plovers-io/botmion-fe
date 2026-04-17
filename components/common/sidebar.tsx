@@ -64,6 +64,11 @@ const navItems: NavItem[] = [
     icon: <MessageSquare size={20} />,
   },
   {
+    label: "Conversation Analytics",
+    href: "/conversations/analytics",
+    icon: <BarChart3 size={20} />,
+  },
+  {
     label: "Token Tracker",
     href: "/token-tracker",
     icon: <BarChart3 size={20} />,
@@ -136,7 +141,7 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto no-scrollbar">
         <p className="px-3 mb-3 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
           Menu
         </p>

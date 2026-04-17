@@ -56,3 +56,37 @@ export interface ChunkingResponse {
   chunks_count: number;
 }
 
+export interface ImageDocument {
+  id: number;
+  source: number;
+  title: string;
+  image_file: string;
+  metadata?: Record<string, unknown>;
+  thumbnail?: string | null;
+  width?: number | null;
+  height?: number | null;
+  file_format?: string | null;
+  file_size?: number | null;
+  checksum: string;
+  status: DocumentStatus;
+  error_message?: string | null;
+  processed_at?: string | null;
+  embedding_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ImageDocumentCreateRequest {
+  source_id: number;
+  title: string;
+  image_file: File;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PaginatedImageDocuments {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ImageDocument[];
+}
+

@@ -70,6 +70,7 @@ export interface ChatbotWidgetConfig {
     bubble_icon?: string;
     [key: string]: unknown;
   };
+  allowed_origins?: string[];
 }
 
 export interface Chatbot {
@@ -113,7 +114,10 @@ export interface ChatbotUpdateRequest {
   ai_tuning?: Partial<AITuning> | null;
   interaction?: Partial<InteractionSetting> | null;
   notification?: Partial<NotificationSetting> | null;
-  widget?: { theme_config: Record<string, unknown> } | null;
+  widget?: {
+    theme_config?: Record<string, unknown>;
+    allowed_origins?: string[];
+  } | null;
 }
 
 // Public chatbot config (returned by widget config endpoint)

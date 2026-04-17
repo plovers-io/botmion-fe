@@ -6,6 +6,9 @@ import {
   DocumentCreateRequest,
   ChunkingRequest,
   ChunkingResponse,
+  ImageDocument,
+  ImageDocumentCreateRequest,
+  PaginatedImageDocuments,
 } from "@/lib/types/training";
 
 const BOTS_BASE =
@@ -142,6 +145,65 @@ export class TrainingService {
     const response = await apiClient.post<ChunkingResponse>(
       `${BOTS_BASE}/v1/documents/${documentId}/chunk/`,
       options || {}
+    );
+    return response.data;
+  }
+
+  // ─── Image Documents ───────────────────────────────────────────────
+
+  /**
+   * List image documents (paginated in backend)
+   * GET /bots/v1/image-documents/
+   */
+  static async getImageDocuments(pageSize = 100): Promise<ImageDocument[]> {
+    const response = await apiClient.get<PaginatedImageDocuments | ImageDocument[]>(
+      `${BOTS_BASE}/v1/image-documents/?page_size=${pageSize}`
+    );
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    return response.data.results || [];
+  }
+
+  /**
+   * Create a new image document
+   * POST /bots/v1/image-documents/
+   */
+  static async createImageDocument(data: ImageDocumentCreateRequest): Promise<ImageDocument> {
+    const formData = new FormData();
+    formData.append("source_id", String(data.source_id));
+    formData.append("title", data.title);
+    formData.append("image_file", data.image_file);
+    if (data.metadata && Object.keys(data.metadata).length > 0) {
+      formData.append("metadata", JSON.stringify(data.metadata));
+    }
+
+    const response = await apiClient.post<ImageDocument>(
+      `${BOTS_BASE}/v1/image-documents/`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+    return response.data;
+  }
+
+  /**
+   * Delete an image document
+   * DELETE /bots/v1/image-documents/:id/
+   */
+  static async deleteImageDocument(id: number): Promise<void> {
+    await apiClient.delete(`${BOTS_BASE}/v1/image-documents/${id}/`);
+  }
+
+  /**
+   * Trigger image embedding processing
+   * POST /bots/v1/image-documents/:id/process/
+   */
+  static async processImageDocument(id: number): Promise<{ status: string; message: string }> {
+    const response = await apiClient.post<{ status: string; message: string }>(
+      `${BOTS_BASE}/v1/image-documents/${id}/process/`,
+      {}
     );
     return response.data;
   }

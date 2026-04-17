@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { ConversationService } from "@/lib/services/conversation-service";
 import { ChatbotService } from "@/lib/services/chatbot-service";
 import { Conversation, ConversationListItem, PlatformType } from "@/lib/types/conversation";
@@ -150,7 +151,10 @@ export default function ConversationsPage() {
           </p>
         </div>
 
-        <div className="w-full sm:w-auto">
+        <div className="w-full sm:w-auto flex flex-col sm:items-end gap-2">
+          <Button asChild variant="outline" className="h-10">
+            <Link href="/conversations/analytics">View Analytics</Link>
+          </Button>
           <label
             htmlFor="platform-filter"
             className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"

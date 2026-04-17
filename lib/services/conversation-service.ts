@@ -8,6 +8,8 @@ import {
   ChatAudioRequest,
   PublicChatAudioRequest,
   PublicChatResponse,
+  ConversationAnalyticsQuery,
+  ConversationAnalyticsResponse,
 } from "@/lib/types/conversation";
 import axios from "axios";
 
@@ -51,6 +53,25 @@ export class ConversationService {
   }
 
   /**
+   * Conversation analytics dashboard data
+   * GET /messaging/v1/conversations/analytics/
+   */
+  static async getConversationAnalytics(
+    params?: ConversationAnalyticsQuery
+  ): Promise<ConversationAnalyticsResponse> {
+    const query = new URLSearchParams();
+    if (params?.chatbot_id) query.set("chatbot_id", String(params.chatbot_id));
+    if (params?.platform) query.set("platform", params.platform);
+    if (params?.start_date) query.set("start_date", params.start_date);
+    if (params?.end_date) query.set("end_date", params.end_date);
+
+    const response = await apiClient.get<ConversationAnalyticsResponse>(
+      `${MESSAGING_BASE}/v1/conversations/analytics/${query.toString() ? `?${query.toString()}` : ""}`
+    );
+    return response.data;
+  }
+
+  /**
    * Delete a conversation
    * DELETE /messaging/v1/conversations/:id/
    */
@@ -66,6 +87,30 @@ export class ConversationService {
   static async sendMessage(
     data: ChatMessageRequest
   ): Promise<ChatMessageResponse> {
+    if (data.image_file) {
+      const formData = new FormData();
+      formData.append("chatbot_id", String(data.chatbot_id));
+      formData.append("image_file", data.image_file);
+      if (data.content && data.content.trim()) {
+        formData.append("content", data.content);
+      }
+      if (data.conversation_id != null) {
+        formData.append("conversation_id", String(data.conversation_id));
+      }
+      if (data.platform) formData.append("platform", data.platform);
+      if (data.external_id) formData.append("external_id", data.external_id);
+      if (data.metadata) {
+        formData.append("metadata", JSON.stringify(data.metadata));
+      }
+
+      const multipartResponse = await apiClient.post<ChatMessageResponse>(
+        `${MESSAGING_BASE}/v1/chat/`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      return multipartResponse.data;
+    }
+
     const response = await apiClient.post<ChatMessageResponse>(
       `${MESSAGING_BASE}/v1/chat/`,
       data

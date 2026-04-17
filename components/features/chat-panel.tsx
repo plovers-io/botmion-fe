@@ -16,6 +16,7 @@ import {
   Mic,
   Square,
   Volume2,
+  Image as ImageIcon,
 } from "lucide-react";
 
 interface ChatPanelProps {
@@ -29,6 +30,8 @@ interface ChatBubble {
   uuid?: string;          // used for polling processing messages
   role: "user" | "assistant";
   content: string;
+  image_file?: string;
+  message_type?: "text" | "image" | "mixed";
   timestamp: string;
   status?: string;
 }
@@ -39,12 +42,15 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
   const [sending, setSending] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  const [retryingMessageId, setRetryingMessageId] = useState<string | number | null>(null);
   const [speakingId, setSpeakingId] = useState<string | number | null>(null);
   const [pendingVoiceBlob, setPendingVoiceBlob] = useState<Blob | null>(null);
   const [pendingVoiceSeconds, setPendingVoiceSeconds] = useState<number>(0);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const pollTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -78,8 +84,10 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
       setInput("");
       setRecording(false);
       setVoiceBusy(false);
+      setRetryingMessageId(null);
       setPendingVoiceBlob(null);
       setPendingVoiceSeconds(0);
+      setPendingImageFile(null);
     }
   }, [chatbot?.id]);
 
@@ -95,6 +103,7 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
         window.speechSynthesis.cancel();
       }
       setPendingVoiceBlob(null);
+      setPendingImageFile(null);
     };
   }, []);
 
@@ -226,15 +235,20 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
 
   const handleSend = async (overrideContent?: string) => {
     const content = overrideContent || input.trim();
-    if (!content || !chatbot || sending) return;
+    if ((!content && !pendingImageFile) || !chatbot || sending) return;
+
+    const imageFileToSend = pendingImageFile;
 
     setInput("");
+    setPendingImageFile(null);
 
     // Optimistic: add user message immediately
     const userBubble: ChatBubble = {
       id: `user-${Date.now()}`,
       role: "user",
-      content: content,
+      content: content || "[Image query]",
+      image_file: imageFileToSend ? URL.createObjectURL(imageFileToSend) : undefined,
+      message_type: imageFileToSend ? (content ? "mixed" : "image") : "text",
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userBubble]);
@@ -257,6 +271,7 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
     try {
       const response: ChatMessageResponse = await ConversationService.sendMessage({
         content: content,
+        image_file: imageFileToSend || undefined,
         chatbot_id: chatbot.id,
         conversation_id: conversationId,
         platform: "web",
@@ -277,6 +292,8 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
             uuid: asst.uuid,
             role: "assistant",
             content: asst.content,
+            image_file: asst.image_file || undefined,
+            message_type: asst.message_type,
             timestamp: asst.created_at,
             status: asst.status,
           })
@@ -300,6 +317,89 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
       );
     } finally {
       setSending(false);
+    }
+  };
+
+  const getRetryContent = useCallback(
+    (assistantMessageId: string | number): string => {
+      const failedIndex = messages.findIndex((m) => m.id === assistantMessageId);
+      if (failedIndex < 0) return "";
+      for (let i = failedIndex - 1; i >= 0; i -= 1) {
+        if (messages[i].role === "user" && messages[i].content.trim()) {
+          return messages[i].content.trim();
+        }
+      }
+      return "";
+    },
+    [messages]
+  );
+
+  const handleRetry = async (assistantMessageId: string | number) => {
+    if (!chatbot || sending || voiceBusy || retryingMessageId !== null) return;
+
+    const retryContent = getRetryContent(assistantMessageId);
+    if (!retryContent) return;
+
+    setRetryingMessageId(assistantMessageId);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantMessageId
+          ? {
+              ...m,
+              content: "",
+              status: "processing",
+            }
+          : m
+      )
+    );
+
+    try {
+      const response: ChatMessageResponse = await ConversationService.sendMessage({
+        content: retryContent,
+        chatbot_id: chatbot.id,
+        conversation_id: conversationId,
+        platform: "web",
+      });
+
+      if (!conversationId) {
+        setConversationId(response.conversation_id);
+      }
+
+      const asst = response.assistant_message;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMessageId
+            ? {
+                ...m,
+                id: asst.id,
+                uuid: asst.uuid,
+                content: asst.content,
+                image_file: asst.image_file || undefined,
+                message_type: asst.message_type,
+                timestamp: asst.created_at,
+                status: asst.status,
+              }
+            : m
+        )
+      );
+
+      if (asst.status === "processing") {
+        startPolling(asst.uuid);
+      }
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMessageId
+            ? {
+                ...m,
+                content: "Retry failed. Please try sending again.",
+                status: "failed",
+              }
+            : m
+        )
+      );
+    } finally {
+      setRetryingMessageId(null);
     }
   };
 
@@ -344,6 +444,8 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
             uuid: user.uuid,
             role: "user",
             content: user.content,
+            image_file: user.image_file || undefined,
+            message_type: user.message_type,
             timestamp: user.created_at,
             status: user.status,
           })
@@ -352,6 +454,8 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
             uuid: asst.uuid,
             role: "assistant",
             content: asst.content,
+            image_file: asst.image_file || undefined,
+            message_type: asst.message_type,
             timestamp: asst.created_at,
             status: asst.status,
           })
@@ -571,8 +675,16 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
                         : "bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700/50 rounded-tl-md"
                     } ${msg.status === "failed" ? "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300" : ""}`}
                   >
+                    {msg.image_file && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={msg.image_file}
+                        alt="message image"
+                        className="mb-2 rounded-lg border border-gray-200 dark:border-gray-700 max-w-55 max-h-45 object-cover"
+                      />
+                    )}
                     <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                    {msg.role === "assistant" && msg.content && (
+                    {msg.role === "assistant" && msg.content && msg.status !== "failed" && (
                       <button
                         onClick={() => speakText(msg.id, msg.content)}
                         className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
@@ -580,6 +692,17 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
                       >
                         <Volume2 size={12} />
                         {speakingId === msg.id ? "Playing..." : "Play"}
+                      </button>
+                    )}
+                    {msg.role === "assistant" && msg.status === "failed" && (
+                      <button
+                        onClick={() => handleRetry(msg.id)}
+                        className="mt-2 inline-flex items-center gap-1.5 text-[11px] text-red-600 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200 cursor-pointer"
+                        type="button"
+                        disabled={retryingMessageId === msg.id || sending || voiceBusy || recording}
+                      >
+                        <RotateCcw size={12} className={retryingMessageId === msg.id ? "animate-spin" : ""} />
+                        {retryingMessageId === msg.id ? "Retrying..." : "Retry"}
                       </button>
                     )}
                     <p
@@ -606,6 +729,17 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
 
         {/* Input Area */}
         <div className="border-t border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-900 px-4 py-3">
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0] || null;
+              setPendingImageFile(file);
+              e.currentTarget.value = "";
+            }}
+          />
           <div className="flex items-end gap-2">
             <div className="flex-1 relative">
               <textarea
@@ -627,8 +761,22 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
             </div>
             <Button
               type="button"
+              onClick={() => imageInputRef.current?.click()}
+              disabled={sending || voiceBusy || recording}
+              size="icon-sm"
+              className={`rounded-xl h-10 w-10 shrink-0 transition-all ${
+                pendingImageFile
+                  ? "bg-blue-500 hover:bg-blue-600 text-white"
+                  : "bg-gray-200 hover:bg-gray-300 text-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+              } disabled:opacity-40`}
+              title="Attach image"
+            >
+              <ImageIcon size={16} />
+            </Button>
+            <Button
+              type="button"
               onClick={toggleRecording}
-              disabled={sending || voiceBusy || !!pendingVoiceBlob}
+              disabled={sending || voiceBusy || !!pendingVoiceBlob || !!pendingImageFile}
               size="icon-sm"
               className={`rounded-xl h-10 w-10 shrink-0 transition-all ${
                 recording
@@ -652,7 +800,7 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
             )}
             <Button
               onClick={() => handleSend()}
-              disabled={!input.trim() || sending || voiceBusy || recording || !!pendingVoiceBlob}
+              disabled={(!input.trim() && !pendingImageFile) || sending || voiceBusy || recording || !!pendingVoiceBlob}
               size="icon-sm"
               className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl h-10 w-10 shrink-0 shadow-md shadow-emerald-500/20 disabled:opacity-40 transition-all"
             >
@@ -689,11 +837,29 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
               </div>
             </div>
           )}
+          {pendingImageFile && (
+            <div className="mt-2 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 dark:border-blue-900/60 dark:bg-blue-900/20">
+              <p className="text-xs text-blue-700 dark:text-blue-200 truncate pr-2">
+                Image ready: {pendingImageFile.name}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPendingImageFile(null)}
+                className="h-7 text-xs"
+              >
+                Remove
+              </Button>
+            </div>
+          )}
           <p className="text-[10px] text-gray-300 dark:text-gray-600 text-center mt-2">
             {recording
               ? "Recording... tap stop to review voice"
               : pendingVoiceBlob
               ? "Voice is ready. You can send or cancel."
+              : pendingImageFile
+              ? "Image is attached. You can add optional text and send."
               : voiceBusy
               ? "Transcribing voice..."
               : "Shift+Enter for new line"}

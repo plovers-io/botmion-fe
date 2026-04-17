@@ -10,6 +10,7 @@ import {
   Document,
   DocumentStatus,
   QAPair,
+  ImageDocument,
 } from "@/lib/types/training";
 import { goeyToast as toast } from "goey-toast";
 import {
@@ -34,6 +35,7 @@ import {
   Link2,
   HelpCircle,
   X,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +95,7 @@ export default function TrainingPage() {
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [imageDocuments, setImageDocuments] = useState<ImageDocument[]>([]);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -115,6 +118,16 @@ export default function TrainingPage() {
   const [qaPairs, setQaPairs] = useState<QAPair[]>([{ question: "", answer: "" }]);
   const [creatingDoc, setCreatingDoc] = useState(false);
 
+  // Image document creation modal
+  const [showImageDocModal, setShowImageDocModal] = useState(false);
+  const [selectedImageSourceId, setSelectedImageSourceId] = useState<number | null>(null);
+  const [imageDocTitle, setImageDocTitle] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageMetadataText, setImageMetadataText] = useState("");
+  const [creatingImageDoc, setCreatingImageDoc] = useState(false);
+  const [processingImageDocId, setProcessingImageDocId] = useState<number | null>(null);
+  const [deletingImageDocId, setDeletingImageDocId] = useState<number | null>(null);
+
   // Document preview modal
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -131,14 +144,16 @@ export default function TrainingPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [chatbotData, sourceData, docData] = await Promise.all([
+      const [chatbotData, sourceData, docData, imageDocData] = await Promise.all([
         ChatbotService.getChatbots(),
         TrainingService.getKnowledgeSources(),
         TrainingService.getDocuments(),
+        TrainingService.getImageDocuments(),
       ]);
       setChatbots(chatbotData);
       setSources(sourceData);
       setDocuments(docData);
+      setImageDocuments(imageDocData);
 
       if (chatbotData.length > 0) {
         setSelectedChatbotId((prev) => prev ?? chatbotData[0].id);
@@ -147,6 +162,7 @@ export default function TrainingPage() {
       setChatbots([]);
       setSources([]);
       setDocuments([]);
+      setImageDocuments([]);
     } finally {
       setLoading(false);
     }
@@ -167,6 +183,30 @@ export default function TrainingPage() {
   const filteredDocuments = documents.filter((d) =>
     filteredSourceIds.has(d.source)
   );
+
+  const filteredImageDocuments = imageDocuments.filter((d) =>
+    filteredSourceIds.has(d.source)
+  );
+
+  const refreshImageDocuments = useCallback(async () => {
+    try {
+      const data = await TrainingService.getImageDocuments();
+      setImageDocuments(data);
+    } catch {
+      // Silent refresh failure: keep current UI state.
+    }
+  }, []);
+
+  useEffect(() => {
+    const hasProcessing = filteredImageDocuments.some((doc) => doc.status === "processing");
+    if (!hasProcessing) return;
+
+    const timer = setInterval(() => {
+      refreshImageDocuments();
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, [filteredImageDocuments, refreshImageDocuments]);
 
   // ─── Source handlers ────────────────────────────────────────────────
 
@@ -197,6 +237,7 @@ export default function TrainingPage() {
       await TrainingService.deleteKnowledgeSource(id);
       setSources((prev) => prev.filter((s) => s.id !== id));
       setDocuments((prev) => prev.filter((d) => d.source !== id));
+      setImageDocuments((prev) => prev.filter((d) => d.source !== id));
       toast.success("Source Deleted", { description: "Knowledge source has been removed" });
     } catch (error: unknown) {
       const err = error as { message?: string };
@@ -260,6 +301,72 @@ export default function TrainingPage() {
   };
 
   // ─── Training handler ───────────────────────────────────────────────
+
+  const handleCreateImageDocument = async () => {
+    if (!selectedImageSourceId || !imageFile || !imageDocTitle.trim()) return;
+    setCreatingImageDoc(true);
+    try {
+      let parsedMetadata: Record<string, unknown> | undefined;
+      if (imageMetadataText.trim()) {
+        const maybeMetadata = JSON.parse(imageMetadataText.trim());
+        if (!maybeMetadata || typeof maybeMetadata !== "object" || Array.isArray(maybeMetadata)) {
+          throw new Error("Metadata must be a valid JSON object.");
+        }
+        parsedMetadata = maybeMetadata as Record<string, unknown>;
+      }
+
+      const created = await TrainingService.createImageDocument({
+        source_id: selectedImageSourceId,
+        title: imageDocTitle.trim(),
+        image_file: imageFile,
+        metadata: parsedMetadata,
+      });
+      setImageDocuments((prev) => [created, ...prev]);
+      setShowImageDocModal(false);
+      setSelectedImageSourceId(null);
+      setImageDocTitle("");
+      setImageFile(null);
+      setImageMetadataText("");
+      toast.success("Image Added", { description: "Image document uploaded successfully" });
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      toast.error("Upload Failed", { description: err?.message || "Failed to upload image" });
+    } finally {
+      setCreatingImageDoc(false);
+    }
+  };
+
+  const handleProcessImage = async (id: number) => {
+    setProcessingImageDocId(id);
+    try {
+      const result = await TrainingService.processImageDocument(id);
+      toast.success("Processing Started", { description: result.message || "Image embedding started" });
+      setImageDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === id ? { ...doc, status: "processing" as DocumentStatus } : doc
+        )
+      );
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      toast.error("Process Failed", { description: err?.message || "Failed to process image" });
+    } finally {
+      setProcessingImageDocId(null);
+    }
+  };
+
+  const handleDeleteImageDocument = async (id: number) => {
+    setDeletingImageDocId(id);
+    try {
+      await TrainingService.deleteImageDocument(id);
+      setImageDocuments((prev) => prev.filter((doc) => doc.id !== id));
+      toast.success("Image Deleted", { description: "Image document removed" });
+    } catch (error: unknown) {
+      const err = error as { message?: string };
+      toast.error("Delete Failed", { description: err?.message || "Failed to delete image" });
+    } finally {
+      setDeletingImageDocId(null);
+    }
+  };
 
   const handleTrain = async (docId: number) => {
     setTrainingDocId(docId);
@@ -574,6 +681,108 @@ export default function TrainingPage() {
               </div>
             )}
           </div>
+
+          {/* Image Documents Section */}
+          <div className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-100 dark:border-gray-700/50 overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between p-5 border-b border-gray-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg flex items-center justify-center">
+                  <ImageIcon size={16} className="text-blue-600" />
+                </div>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Image Embedding</h2>
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">
+                  {filteredImageDocuments.length}
+                </span>
+              </div>
+              <Button
+                onClick={() => {
+                  setSelectedImageSourceId(filteredSources[0]?.id || null);
+                  setShowImageDocModal(true);
+                }}
+                size="sm"
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-md"
+              >
+                <Plus size={16} />
+                Add Image
+              </Button>
+            </div>
+
+            {filteredImageDocuments.length === 0 ? (
+              <div className="p-8 text-center">
+                <ImageIcon size={32} className="text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  No image documents yet. Upload image files and trigger embedding.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {filteredImageDocuments.map((doc) => {
+                  const stat = statusConfig[doc.status] ?? statusConfig.pending;
+                  const isProcessing = processingImageDocId === doc.id;
+                  const isDeleting = deletingImageDocId === doc.id;
+
+                  return (
+                    <div key={doc.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
+                          {doc.thumbnail || doc.image_file ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={(doc.thumbnail || doc.image_file) as string} alt={doc.title} className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon size={16} className="text-gray-400" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{doc.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${stat.color}`}>
+                              {stat.icon}
+                              {stat.label}
+                            </span>
+                            <span className="text-xs text-gray-400">{getSourceName(doc.source)}</span>
+                            {doc.file_format ? (
+                              <span className="text-xs text-gray-400 uppercase">{doc.file_format}</span>
+                            ) : null}
+                            {doc.width && doc.height ? (
+                              <span className="text-xs text-gray-400">{doc.width}x{doc.height}</span>
+                            ) : null}
+                            {doc.metadata && Object.keys(doc.metadata).length > 0 ? (
+                              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                {Object.keys(doc.metadata).length} metadata fields
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          onClick={() => handleProcessImage(doc.id)}
+                          disabled={doc.status === "processing" || isProcessing}
+                          variant="ghost"
+                          size="xs"
+                          className="text-blue-700 bg-blue-50 hover:bg-blue-100"
+                        >
+                          {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                          Process
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteImageDocument(doc.id)}
+                          disabled={isDeleting}
+                          variant="ghost"
+                          size="icon-xs"
+                          className="text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          title="Delete image"
+                        >
+                          {isDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -658,6 +867,83 @@ export default function TrainingPage() {
               ) : (
                 "Create Source"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Image Document Modal */}
+      <Dialog open={showImageDocModal} onOpenChange={setShowImageDocModal}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon size={18} className="text-blue-600" />
+              Add Image Document
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-2">
+              <Label>Knowledge Source</Label>
+              <Select
+                value={selectedImageSourceId ? String(selectedImageSourceId) : undefined}
+                onValueChange={(value) => setSelectedImageSourceId(Number(value))}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredSources.map((source) => (
+                    <SelectItem key={source.id} value={String(source.id)}>
+                      {source.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Image Title</Label>
+              <Input
+                value={imageDocTitle}
+                onChange={(e) => setImageDocTitle(e.target.value)}
+                placeholder="e.g. Company Banner, Product Hero"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Upload Image</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+              <p className="text-xs text-gray-400">Supported formats: JPG, PNG, WebP (based on backend validation).</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Metadata (Optional JSON)</Label>
+              <Textarea
+                value={imageMetadataText}
+                onChange={(e) => setImageMetadataText(e.target.value)}
+                rows={4}
+                placeholder='{"animal_type":"horse","age":"5 years","speed":"55 km/h","food_habits":["grass","hay"]}'
+              />
+              <p className="text-xs text-gray-400">
+                Provide optional structured facts. This metadata is stored with image embedding payload.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImageDocModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateImageDocument}
+              disabled={!selectedImageSourceId || !imageDocTitle.trim() || !imageFile || creatingImageDoc}
+              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+            >
+              {creatingImageDoc ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              Upload Image
             </Button>
           </DialogFooter>
         </DialogContent>

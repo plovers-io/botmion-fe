@@ -139,6 +139,10 @@ interface InteractionSnapshot {
   collectFeedback: boolean;
 }
 
+interface EmbedSnapshot {
+  allowedOrigins: string[];
+}
+
 // ─── Deep equality helper ─────────────────────────────────────────────────────
 
 function isEqual(a: unknown, b: unknown): boolean {
@@ -216,6 +220,10 @@ export default function ChatbotSettingsPage() {
   const [requireNameEmail, setRequireNameEmail] = useState(false);
   const [collectFeedback, setCollectFeedback] = useState(false);
 
+  // Embed / widget security
+  const [allowedOrigins, setAllowedOrigins] = useState<string[]>([]);
+  const [newOrigin, setNewOrigin] = useState("");
+
   // Embed copy state
   const [copiedSnippet, setCopiedSnippet] = useState<"script" | "iframe" | null>(null);
 
@@ -230,6 +238,7 @@ export default function ChatbotSettingsPage() {
   const [aiSnap, setAiSnap] = useState<AITuningSnapshot | null>(null);
   const [ragSnap, setRagSnap] = useState<RAGSnapshot | null>(null);
   const [interactionSnap, setInteractionSnap] = useState<InteractionSnapshot | null>(null);
+  const [embedSnap, setEmbedSnap] = useState<EmbedSnapshot | null>(null);
 
   // ─── Current values as snapshot objects ─────────────────────────────
 
@@ -264,6 +273,12 @@ export default function ChatbotSettingsPage() {
     }),
     [welcomeMessage, popupMessage, fallbackMessage, predefinedQuestions, requireNameEmail, collectFeedback]
   );
+  const currentEmbed: EmbedSnapshot = useMemo(
+    () => ({
+      allowedOrigins: [...allowedOrigins],
+    }),
+    [allowedOrigins]
+  );
 
   // ─── Section dirty detection ────────────────────────────────────────
 
@@ -273,6 +288,7 @@ export default function ChatbotSettingsPage() {
   const aiDirty = aiSnap ? !isEqual(currentAI, aiSnap) : false;
   const ragDirty = ragSnap ? !isEqual(currentRAG, ragSnap) : false;
   const interactionDirty = interactionSnap ? !isEqual(currentInteraction, interactionSnap) : false;
+  const embedDirty = embedSnap ? !isEqual(currentEmbed, embedSnap) : false;
 
   const isDirtyMap: Record<SettingsTab, boolean> = {
     general: generalDirty,
@@ -281,7 +297,7 @@ export default function ChatbotSettingsPage() {
     ai: aiDirty,
     rag: ragDirty,
     interaction: interactionDirty,
-    embed: false,
+    embed: embedDirty,
   };
 
   const activeTabDirty = isDirtyMap[activeTab];
@@ -393,6 +409,9 @@ export default function ChatbotSettingsPage() {
     setPredefinedQuestions(pq);
     setRequireNameEmail(rne);
     setCollectFeedback(cf);
+    const ao = [...(b.widget?.allowed_origins || [])];
+    setAllowedOrigins(ao);
+    setNewOrigin("");
 
     // Set snapshots
     setGeneralSnap({ name: n, type: t, status: s });
@@ -401,6 +420,7 @@ export default function ChatbotSettingsPage() {
     setAiSnap({ modelName: mn, responseStyle: rs, answerStyle: as_, maxTokens: mt });
     setRagSnap({ topK: tk, scoreThreshold: st, retrievalStrategy: retrStrat, includeSources: is_, rerank: rr });
     setInteractionSnap({ welcomeMessage: wm, popupMessage: pm, fallbackMessage: fm, predefinedQuestions: [...pq], requireNameEmail: rne, collectFeedback: cf });
+    setEmbedSnap({ allowedOrigins: [...ao] });
   };
 
   // ─── Build payload for only the changed section ─────────────────────
@@ -485,6 +505,13 @@ export default function ChatbotSettingsPage() {
           }
           return Object.keys(changes).length ? { interaction: changes as ChatbotUpdateRequest["interaction"] } : null;
         }
+      case "embed":
+        if (!embedDirty) return null;
+        return {
+          widget: {
+            allowed_origins: [...allowedOrigins],
+          },
+        };
       default:
         return null;
     }
@@ -560,7 +587,46 @@ export default function ChatbotSettingsPage() {
           collectFeedback: b.interaction?.collect_feedback || false,
         });
         break;
+      case "embed":
+        setEmbedSnap({
+          allowedOrigins: [...(b.widget?.allowed_origins || [])],
+        });
+        setAllowedOrigins([...(b.widget?.allowed_origins || [])]);
+        setNewOrigin("");
+        break;
     }
+  };
+
+  const normalizeOrigin = (value: string) => {
+    const raw = value.trim();
+    if (!raw) return "";
+    try {
+      const url = new URL(raw);
+      if (!["http:", "https:"].includes(url.protocol)) return "";
+      return `${url.protocol}//${url.host}`.toLowerCase();
+    } catch {
+      return "";
+    }
+  };
+
+  const addAllowedOrigin = () => {
+    const normalized = normalizeOrigin(newOrigin);
+    if (!normalized) {
+      toast.error("Invalid Origin", {
+        description: "Use full origin format like https://example.com",
+      });
+      return;
+    }
+    if (allowedOrigins.includes(normalized)) {
+      toast.info("Already Added", { description: "This domain already exists." });
+      return;
+    }
+    setAllowedOrigins((prev) => [...prev, normalized]);
+    setNewOrigin("");
+  };
+
+  const removeAllowedOrigin = (origin: string) => {
+    setAllowedOrigins((prev) => prev.filter((item) => item !== origin));
   };
 
   // ─── Tab switch with auto-save prompt ───────────────────────────────
@@ -1258,6 +1324,61 @@ export default function ChatbotSettingsPage() {
           {/* Embed / Widget Tab */}
           {activeTab === "embed" && (
             <div className="space-y-5">
+              <Card className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm border-gray-100 dark:border-gray-700/50 shadow-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="flex items-center gap-3 text-base">
+                      <Shield size={18} className="text-emerald-600" />
+                      Allowed Domains
+                    </CardTitle>
+                    <SectionSaveButton tab="embed" />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-gray-500">
+                    Only these site origins can load widget config and send public widget messages.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newOrigin}
+                      onChange={(e) => setNewOrigin(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addAllowedOrigin()}
+                      placeholder="https://example.com"
+                      className="font-mono"
+                    />
+                    <Button type="button" variant="outline" onClick={addAllowedOrigin}>
+                      <Plus size={14} />
+                      Add
+                    </Button>
+                  </div>
+
+                  {allowedOrigins.length === 0 ? (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      No domain configured. In production, add your web app domains before embedding.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {allowedOrigins.map((origin) => (
+                        <div
+                          key={origin}
+                          className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-700 dark:border-emerald-900 dark:bg-emerald-900/20 dark:text-emerald-300"
+                        >
+                          <span className="font-mono">{origin}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeAllowedOrigin(origin)}
+                            className="hover:text-red-500"
+                            aria-label={`Remove ${origin}`}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Status notice */}
               {bot.status !== "published" && (
                 <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/30 rounded-xl p-4 flex items-start gap-3">
