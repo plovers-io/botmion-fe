@@ -517,12 +517,12 @@ export default function TrainingPage() {
                   return (
                     <div
                       key={source.id}
-                      className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                            source.source_type === "internal" ? "bg-emerald-50" : "bg-blue-50"
+                            source.source_type === "internal" ? "bg-emerald-50 dark:bg-emerald-900/30" : "bg-blue-50 dark:bg-blue-900/30"
                           }`}
                         >
                           {source.source_type === "internal" ? (
@@ -550,7 +550,7 @@ export default function TrainingPage() {
                           }}
                           variant="ghost"
                           size="xs"
-                          className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100"
+                          className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
                         >
                           <Upload size={12} />
                           Add Doc
@@ -559,7 +559,7 @@ export default function TrainingPage() {
                           onClick={() => handleDeleteSource(source.id)}
                           variant="ghost"
                           size="icon-xs"
-                          className="text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                           title="Delete source"
                         >
                           <Trash2 size={14} />
@@ -603,10 +603,10 @@ export default function TrainingPage() {
                   return (
                     <div
                       key={doc.id}
-                      className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                      className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
+                        <div className="w-9 h-9 bg-gray-50 dark:bg-gray-700/60 rounded-lg flex items-center justify-center shrink-0">
                           <FileText size={18} className="text-gray-400" />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -640,7 +640,7 @@ export default function TrainingPage() {
                           disabled={loadingPreview}
                           variant="ghost"
                           size="icon-xs"
-                          className="text-gray-400 hover:text-emerald-600 hover:bg-emerald-50"
+                          className="text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                           title="Preview document"
                         >
                           <Eye size={14} />
@@ -665,7 +665,7 @@ export default function TrainingPage() {
                           disabled={isDeleting || isTraining}
                           variant="ghost"
                           size="icon-xs"
-                          className="text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                           title="Delete document"
                         >
                           {isDeleting ? (
@@ -722,9 +722,9 @@ export default function TrainingPage() {
                   const isDeleting = deletingImageDocId === doc.id;
 
                   return (
-                    <div key={doc.id} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                    <div key={doc.id} className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 shrink-0 flex items-center justify-center">
                           {doc.thumbnail || doc.image_file ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img src={(doc.thumbnail || doc.image_file) as string} alt={doc.title} className="w-full h-full object-cover" />
@@ -761,7 +761,7 @@ export default function TrainingPage() {
                           disabled={doc.status === "processing" || isProcessing}
                           variant="ghost"
                           size="xs"
-                          className="text-blue-700 bg-blue-50 hover:bg-blue-100"
+                          className="text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
                         >
                           {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
                           Process
@@ -771,7 +771,7 @@ export default function TrainingPage() {
                           disabled={isDeleting}
                           variant="ghost"
                           size="icon-xs"
-                          className="text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
                           title="Delete image"
                         >
                           {isDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
@@ -812,8 +812,8 @@ export default function TrainingPage() {
                   onClick={() => setSourceType("internal")}
                   className={`p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
                     sourceType === "internal"
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -821,16 +821,24 @@ export default function TrainingPage() {
                       size={16}
                       className={sourceType === "internal" ? "text-emerald-600" : "text-gray-400"}
                     />
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Internal</span>
+                    <span className={`text-sm font-medium ${
+                      sourceType === "internal" ? "text-emerald-900 dark:text-emerald-100" : "text-gray-900 dark:text-gray-100"
+                    }`}>
+                      Internal
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Upload files &amp; text</p>
+                  <p className={`text-xs ${
+                    sourceType === "internal" ? "text-emerald-700 dark:text-emerald-300" : "text-gray-500 dark:text-gray-400"
+                  }`}>
+                    Upload files &amp; text
+                  </p>
                 </button>
                 <button
                   onClick={() => setSourceType("external")}
                   className={`p-3 rounded-lg border-2 text-left transition-all cursor-pointer ${
                     sourceType === "external"
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-gray-200 hover:border-gray-300"
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
@@ -838,9 +846,17 @@ export default function TrainingPage() {
                       size={16}
                       className={sourceType === "external" ? "text-emerald-600" : "text-gray-400"}
                     />
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">External</span>
+                    <span className={`text-sm font-medium ${
+                      sourceType === "external" ? "text-emerald-900 dark:text-emerald-100" : "text-gray-900 dark:text-gray-100"
+                    }`}>
+                      External
+                    </span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Web URLs &amp; APIs</p>
+                  <p className={`text-xs ${
+                    sourceType === "external" ? "text-emerald-700 dark:text-emerald-300" : "text-gray-500 dark:text-gray-400"
+                  }`}>
+                    Web URLs &amp; APIs
+                  </p>
                 </button>
               </div>
             </div>
