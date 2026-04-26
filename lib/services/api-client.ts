@@ -20,12 +20,64 @@ function parseDRFErrors(data: unknown): Record<string, string[]> | null {
   );
   return isFieldErrors ? (record as Record<string, string[]>) : null;
 }
-
 /** Formats field-level errors into a single readable string. */
 function formatFieldErrors(errors: Record<string, string[]>): string {
   return Object.entries(errors)
     .map(([field, msgs]) => `${field}: ${msgs.join(", ")}`)
     .join("; ");
+}
+
+function firstStringFromUnknown(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value;
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (typeof item === "string" && item.trim()) {
+        return item;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractApiErrorMessage(data: unknown, fallback: string): string {
+  if (!data) return fallback;
+
+  if (typeof data === "string" && data.trim()) {
+    return data;
+  }
+
+  if (typeof data !== "object" || Array.isArray(data)) {
+    return fallback;
+  }
+
+  const record = data as Record<string, unknown>;
+
+  const topLevelMessage =
+    firstStringFromUnknown(record.error) ||
+    firstStringFromUnknown(record.detail) ||
+    firstStringFromUnknown(record.message) ||
+    firstStringFromUnknown(record.non_field_errors);
+
+  if (topLevelMessage) {
+    return topLevelMessage;
+  }
+
+  const fieldErrors = parseDRFErrors(record);
+  if (fieldErrors) {
+    return formatFieldErrors(fieldErrors);
+  }
+
+  // Generic fallback for backends returning { field: "message" } style errors.
+  for (const value of Object.values(record)) {
+    const message = firstStringFromUnknown(value);
+    if (message) {
+      return message;
+    }
+  }
+
+  return fallback;
 }
 
 /**
@@ -145,19 +197,21 @@ class ApiClient {
           }
         }
 
-        const responseData = error.response?.data as any;
+        const responseData = error.response?.data;
         const fieldErrors = parseDRFErrors(responseData);
         const apiError: ApiError = {
           status: error.response?.status || 500,
-          message:
-            responseData?.detail ||
-            responseData?.message ||
-            responseData?.non_field_errors?.[0] ||
-            (fieldErrors ? formatFieldErrors(fieldErrors) : null) ||
-            error.message ||
-            "An error occurred",
+          message: extractApiErrorMessage(
+            responseData,
+            error.message || "An error occurred"
+          ),
           code: error.code,
-          detail: responseData?.detail,
+          detail:
+            typeof responseData === "object" && responseData
+              ? firstStringFromUnknown(
+                  (responseData as Record<string, unknown>).detail
+                ) || undefined
+              : undefined,
           errors: fieldErrors ?? undefined,
         };
         return Promise.reject(apiError);
