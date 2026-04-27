@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { SubscriptionService } from "@/lib/services/subscription-service";
 import {
   BillingCycle,
@@ -51,6 +51,8 @@ const PLAN_HIERARCHY: Record<string, number> = { basic: 1, pro: 2, enterprise: 3
 const QUOTA_LABELS: Record<string, string> = {
   max_bots: "Bots",
   max_documents: "Documents",
+  max_knowledge_sources: "Knowledge Sources",
+  max_integrations: "Integrations",
   max_members: "Team Members",
   messages_per_month: "Messages per Month",
   storage_mb: "Storage (MB)",
@@ -178,6 +180,12 @@ function isUpgrade(currentSlug: string, newSlug: string): boolean {
   return (PLAN_HIERARCHY[newSlug] ?? 0) > (PLAN_HIERARCHY[currentSlug] ?? 0);
 }
 
+function getPlanQuotaLimit(plan: Plan, quotaCode: string): number | null {
+  const quota = plan.quotas.find((item) => item.feature_code === quotaCode);
+  if (!quota) return null;
+  return quota.limit;
+}
+
 export default function SubscriptionPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
@@ -198,6 +206,7 @@ export default function SubscriptionPage() {
   const [renewing, setRenewing] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showSubscriptionDetails, setShowSubscriptionDetails] = useState(false);
   const [updatingOverage, setUpdatingOverage] = useState(false);
 
   const [couponCode, setCouponCode] = useState("");
@@ -224,6 +233,29 @@ export default function SubscriptionPage() {
       return aRank - bRank;
     });
   }, [plans]);
+
+  const alternativePlans = useMemo(() => {
+    if (!currentSubscription) return sortedPlans;
+    return sortedPlans.filter(
+      (plan) => plan.slug !== currentSubscription.plan.slug
+    );
+  }, [currentSubscription, sortedPlans]);
+
+  const comparisonQuotaCodes = useMemo(() => {
+    const codes = new Set<string>();
+    sortedPlans.forEach((plan) => {
+      plan.quotas.forEach((quota) => codes.add(quota.feature_code));
+    });
+    return Array.from(codes);
+  }, [sortedPlans]);
+
+  const comparisonFeatureCodes = useMemo(() => {
+    const codes = new Set<string>();
+    sortedPlans.forEach((plan) => {
+      plan.features.forEach((feature) => codes.add(feature.code));
+    });
+    return Array.from(codes);
+  }, [sortedPlans]);
 
   const loadBillingData = useCallback(async (showRefreshing = true) => {
     if (showRefreshing) {
@@ -727,6 +759,14 @@ export default function SubscriptionPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
+                    className="bg-white dark:bg-gray-900"
+                    onClick={() => setShowSubscriptionDetails((prev) => !prev)}
+                  >
+                    {showSubscriptionDetails ? "See Less" : "See More"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
                     disabled={updatingOverage}
                     className="bg-white dark:bg-gray-900"
                     onClick={handleToggleOverage}
@@ -752,51 +792,119 @@ export default function SubscriptionPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Included Features
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/60">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Features</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {currentSubscription.plan.features.length}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {currentSubscription.plan.features.map((feature) => (
-                      <Badge
-                        key={feature.id}
-                        variant="outline"
-                        className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
-                      >
-                        <Check size={12} />
-                        {feature.name}
-                      </Badge>
-                    ))}
-                  </div>
                 </div>
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Plan Quotas
+                <div className="rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/60">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Quota Rules</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {currentSubscription.plan.quotas.length}
                   </p>
-                  <div className="mt-3 space-y-2">
-                    {currentSubscription.plan.quotas.map((quota) => (
-                      <div
-                        key={quota.feature_code}
-                        className="flex items-center justify-between rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900/60"
-                      >
-                        <span className="text-gray-600 dark:text-gray-300">
-                          {QUOTA_LABELS[quota.feature_code] ||
-                            toTitleCase(quota.feature_code)}
-                        </span>
-                        <span className="font-semibold text-gray-900 dark:text-gray-100">
-                          {quota.limit > 0 ? quota.limit : "Unlimited"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                </div>
+                <div className="rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/60">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {toTitleCase(currentSubscription.status)}
+                  </p>
                 </div>
               </div>
+
+              {showSubscriptionDetails && (
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Included Features
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {currentSubscription.plan.features.length > 0 ? (
+                        currentSubscription.plan.features.map((feature) => (
+                          <Badge
+                            key={feature.id}
+                            variant="outline"
+                            className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                          >
+                            <Check size={12} />
+                            {feature.name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          No feature metadata is configured for this plan yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Plan Quotas
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {currentSubscription.plan.quotas.map((quota) => (
+                        <div
+                          key={quota.feature_code}
+                          className="flex items-center justify-between rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900/60"
+                        >
+                          <span className="text-gray-600 dark:text-gray-300">
+                            {QUOTA_LABELS[quota.feature_code] ||
+                              toTitleCase(quota.feature_code)}
+                          </span>
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">
+                            {quota.limit > 0 ? quota.limit : "Unlimited"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
-          <section className="space-y-4">
+          <section className="rounded-2xl border border-gray-200 bg-white/80 p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  Plan Upgrade / Switch
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Choose another plan to upgrade or switch instantly.
+                </p>
+              </div>
+              {alternativePlans.length === 0 ? (
+                <p className="text-xs text-amber-600 dark:text-amber-300">
+                  No alternative active plan is configured yet.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {alternativePlans.slice(0, 3).map((plan) => (
+                    <Button
+                      key={plan.slug}
+                      variant="outline"
+                      disabled={subscribing === plan.slug}
+                      onClick={() => void handleSubscribe(plan.slug)}
+                      className="bg-white dark:bg-gray-900"
+                    >
+                      {subscribing === plan.slug ? (
+                        <Loader2 className="animate-spin" size={14} />
+                      ) : isUpgrade(currentSubscription?.plan.slug || "", plan.slug) ? (
+                        <ArrowUpCircle size={14} />
+                      ) : (
+                        <ArrowDownCircle size={14} />
+                      )}
+                      {toTitleCase(plan.name)}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section id="plans" className="space-y-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -906,6 +1014,29 @@ export default function SubscriptionPage() {
                         ))}
                       </div>
 
+                      {plan.quotas.length > 0 && (
+                        <div className="mt-4 rounded-xl border border-gray-200/70 bg-white/70 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Plan Limits
+                          </p>
+                          <div className="mt-2 space-y-1.5">
+                            {plan.quotas.slice(0, 4).map((quota) => (
+                              <div
+                                key={`${plan.slug}-${quota.feature_code}`}
+                                className="flex items-center justify-between text-xs"
+                              >
+                                <span className="text-gray-600 dark:text-gray-300">
+                                  {QUOTA_LABELS[quota.feature_code] || toTitleCase(quota.feature_code)}
+                                </span>
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                  {quota.limit > 0 ? quota.limit : "Unlimited"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="mt-5 space-y-2">
                         {isCurrentPlan ? (
                           <Button className="w-full" disabled>
@@ -960,7 +1091,7 @@ export default function SubscriptionPage() {
                 })}
               </div>
 
-              <aside className="rounded-2xl border border-gray-200 bg-white/85 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
+              <aside className="self-start h-fit rounded-2xl border border-gray-200 bg-white/85 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
                 <div className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
                   <TicketPercent className="text-emerald-500" size={18} />
                   <h3 className="text-lg font-semibold">Coupon Studio</h3>
@@ -1056,6 +1187,103 @@ export default function SubscriptionPage() {
                   </div>
                 )}
               </aside>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-gray-200 bg-white/85 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Plan Comparison
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  All values are rendered from backend plan features and quota limits.
+                </p>
+              </div>
+              <Badge variant="outline" className="w-fit">
+                {billingCycle === "monthly" ? "Monthly View" : "Yearly View"}
+              </Badge>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <div className="min-w-195">
+                <div className="grid grid-cols-[220px_repeat(5,minmax(140px,1fr))] gap-2">
+                  <div className="rounded-lg border border-gray-200/70 bg-gray-50/70 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300">
+                    Plans
+                  </div>
+                  {sortedPlans.slice(0, 5).map((plan) => (
+                    <div
+                      key={`comparison-head-${plan.slug}`}
+                      className="rounded-lg border border-gray-200/70 bg-gray-50/70 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/60"
+                    >
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {toTitleCase(plan.name)}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatMoney(getPlanPrice(plan, billingCycle), invoiceSummary?.currency || "USD")} /{billingCycle === "monthly" ? "mo" : "yr"}
+                      </p>
+                    </div>
+                  ))}
+
+                  <div className="col-span-6 mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Limitations
+                  </div>
+
+                  {comparisonQuotaCodes.map((quotaCode) => (
+                    <Fragment key={`quota-row-${quotaCode}`}>
+                      <div
+                        key={`quota-label-${quotaCode}`}
+                        className="rounded-lg border border-gray-200/70 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300"
+                      >
+                        {QUOTA_LABELS[quotaCode] || toTitleCase(quotaCode)}
+                      </div>
+                      {sortedPlans.slice(0, 5).map((plan) => {
+                        const limit = getPlanQuotaLimit(plan, quotaCode);
+                        return (
+                          <div
+                            key={`quota-${quotaCode}-${plan.slug}`}
+                            className="rounded-lg border border-gray-200/70 bg-white px-3 py-2 text-sm font-medium text-gray-900 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-100"
+                          >
+                            {typeof limit === "number" ? (limit > 0 ? limit : "Unlimited") : "-"}
+                          </div>
+                        );
+                      })}
+                    </Fragment>
+                  ))}
+
+                  <div className="col-span-6 mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Features
+                  </div>
+
+                  {comparisonFeatureCodes.map((featureCode) => (
+                    <Fragment key={`feature-row-${featureCode}`}>
+                      <div
+                        key={`feature-label-${featureCode}`}
+                        className="rounded-lg border border-gray-200/70 bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300"
+                      >
+                        {toTitleCase(featureCode)}
+                      </div>
+                      {sortedPlans.slice(0, 5).map((plan) => {
+                        const enabled = plan.features.some((item) => item.code === featureCode);
+                        return (
+                          <div
+                            key={`feature-${featureCode}-${plan.slug}`}
+                            className="rounded-lg border border-gray-200/70 bg-white px-3 py-2 text-sm font-medium dark:border-gray-700 dark:bg-gray-900/60"
+                          >
+                            {enabled ? (
+                              <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-300">
+                                <Check size={14} /> Enabled
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
 

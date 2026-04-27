@@ -207,7 +207,7 @@ class ApiClient {
           ),
           code: error.code,
           detail:
-            typeof responseData === "object" && responseData
+            typeof responseData === "object" && responseData && !Array.isArray(responseData)
               ? firstStringFromUnknown(
                   (responseData as Record<string, unknown>).detail
                 ) || undefined
