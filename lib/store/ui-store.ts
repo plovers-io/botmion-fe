@@ -4,6 +4,7 @@ import { create } from "zustand";
 
 interface UiState {
   sidebarOpen: boolean;
+  sidebarCollapsed: boolean;
   theme: "light" | "dark";
   notifications: Array<{
     id: string;
@@ -14,6 +15,8 @@ interface UiState {
   // Actions
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
+  toggleSidebarCollapsed: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   setTheme: (theme: "light" | "dark") => void;
   addNotification: (
     notification: Omit<UiState["notifications"][0], "id">,
@@ -23,11 +26,14 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   sidebarOpen: false,
+  sidebarCollapsed: false,
   theme: "light",
   notifications: [],
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   setTheme: (theme) => set({ theme }),
   addNotification: (notification) =>
     set((state) => ({

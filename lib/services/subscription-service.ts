@@ -25,6 +25,7 @@ import {
   RefundPaymentResponse,
   RenewalStatusResponse,
   RenewSubscriptionRequest,
+  PlanCatalogResponse,
 } from "@/lib/types/subscription";
 
 const SUBSCRIPTION_BASE =
@@ -64,8 +65,8 @@ export class SubscriptionService {
    * List all available plans
    * GET /subscription/v1/plans/
    */
-  static async getPlans(): Promise<Plan[]> {
-    const response = await apiClient.get<Plan[]>(buildUrl("/plans/"));
+  static async getPlans(): Promise<PlanCatalogResponse> {
+    const response = await apiClient.get<PlanCatalogResponse>(buildUrl("/plans/"));
     return response.data;
   }
 

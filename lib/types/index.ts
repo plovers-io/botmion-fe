@@ -29,6 +29,15 @@ export type {
   ChatbotUpdateRequest,
 } from "./chatbot";
 
+// Notification types
+export type {
+  NotificationItem,
+  NotificationStatus,
+  NotificationPriority,
+  NotificationChannel,
+  NotificationListParams,
+} from "./notification";
+
 // Pagination
 export interface PaginatedResponse<T> {
   items: T[];

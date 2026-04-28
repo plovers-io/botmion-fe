@@ -300,8 +300,6 @@ export default function ChatbotSettingsPage() {
     embed: embedDirty,
   };
 
-  const activeTabDirty = isDirtyMap[activeTab];
-
   // ─── Send preview updates to iframe via postMessage ─────────────────
 
   const sendPreviewUpdate = useCallback(() => {
@@ -714,6 +712,11 @@ export default function ChatbotSettingsPage() {
 
   const scriptSnippet = `<script src="${ChatbotService.getEmbedScriptUrl(bot.uuid)}" async></script>`;
   const iframeSnippet = `<iframe\n  src="${ChatbotService.getIframeUrl(bot.uuid)}"\n  width="400"\n  height="600"\n  frameborder="0"\n  style="border:none; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.12);"\n></iframe>`;
+  const usesLocalhostEmbed =
+    scriptSnippet.includes("localhost") ||
+    scriptSnippet.includes("127.0.0.1") ||
+    iframeSnippet.includes("localhost") ||
+    iframeSnippet.includes("127.0.0.1");
 
   // ─── Render ────────────────────────────────────────────────────────
 

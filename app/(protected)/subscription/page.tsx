@@ -21,11 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  ArrowDownCircle,
-  ArrowUpCircle,
   Calendar,
   Check,
-  ChevronRight,
   Clock3,
   CreditCard,
   ExternalLink,
@@ -47,10 +44,12 @@ import {
   X,
 } from "lucide-react";
 
-const PLAN_HIERARCHY: Record<string, number> = { basic: 1, pro: 2, enterprise: 3 };
+const PLAN_SEQUENCE = ["free", "starter", "pro", "business", "enterprise"];
 const QUOTA_LABELS: Record<string, string> = {
   max_bots: "Bots",
   max_documents: "Documents",
+  max_knowledge_sources: "Knowledge Sources",
+  max_integrations: "Integrations",
   max_members: "Team Members",
   messages_per_month: "Messages per Month",
   storage_mb: "Storage (MB)",
@@ -174,12 +173,19 @@ function statusClass(status: string): string {
   }
 }
 
-function isUpgrade(currentSlug: string, newSlug: string): boolean {
-  return (PLAN_HIERARCHY[newSlug] ?? 0) > (PLAN_HIERARCHY[currentSlug] ?? 0);
+function getPlanQuotaLimit(plan: Plan, quotaCode: string): number | null {
+  const quota = plan.quotas.find((item) => item.feature_code === quotaCode);
+  if (!quota) return null;
+  return quota.limit;
 }
 
 export default function SubscriptionPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [planCatalog, setPlanCatalog] = useState<{
+    comparison_note: string;
+    billing_cycle_notes: Record<BillingCycle, string>;
+    expiry_note: string;
+  } | null>(null);
   const [currentSubscription, setCurrentSubscription] = useState<Subscription | null>(null);
   const [subscriptionQuotas, setSubscriptionQuotas] =
     useState<SubscriptionQuotasResponse | null>(null);
@@ -193,11 +199,11 @@ export default function SubscriptionPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [subscribing, setSubscribing] = useState<string | null>(null);
   const [creatingPayment, setCreatingPayment] = useState<string | null>(null);
   const [renewing, setRenewing] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showSubscriptionDetails, setShowSubscriptionDetails] = useState(false);
   const [updatingOverage, setUpdatingOverage] = useState(false);
 
   const [couponCode, setCouponCode] = useState("");
@@ -216,14 +222,49 @@ export default function SubscriptionPage() {
     }, 0);
   }, [plans]);
 
-  const sortedPlans = useMemo(() => {
-    return [...plans].sort((a, b) => {
-      const aRank = PLAN_HIERARCHY[a.slug] ?? 100;
-      const bRank = PLAN_HIERARCHY[b.slug] ?? 100;
-      if (aRank === bRank) return a.name.localeCompare(b.name);
-      return aRank - bRank;
-    });
+  const orderedPlans = useMemo(() => {
+    const bySlug = new Map(plans.map((plan) => [plan.slug, plan]));
+    const canonicalPlans = PLAN_SEQUENCE.map((slug) => bySlug.get(slug)).filter(
+      (plan): plan is Plan => Boolean(plan)
+    );
+    const remainingPlans = plans
+      .filter((plan) => !PLAN_SEQUENCE.includes(plan.slug))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return [...canonicalPlans, ...remainingPlans];
   }, [plans]);
+
+  const comparisonPlans = useMemo(() => orderedPlans.slice(0, 5), [orderedPlans]);
+
+  const promotionPlans = useMemo(
+    () => orderedPlans.filter((plan) => plan.slug !== "free").slice(0, 4),
+    [orderedPlans]
+  );
+
+  const comparisonPaidPlans = useMemo(
+    () => comparisonPlans.filter((plan) => plan.slug !== "free"),
+    [comparisonPlans]
+  );
+
+  const sharedBillingNote = planCatalog
+    ? `${planCatalog.billing_cycle_notes[billingCycle]} · ${planCatalog.expiry_note}`
+    : "";
+
+  const comparisonQuotaCodes = useMemo(() => {
+    const codes = new Set<string>();
+    orderedPlans.forEach((plan) => {
+      plan.quotas.forEach((quota) => codes.add(quota.feature_code));
+    });
+    return Array.from(codes);
+  }, [orderedPlans]);
+
+  const comparisonFeatureCodes = useMemo(() => {
+    const codes = new Set<string>();
+    orderedPlans.forEach((plan) => {
+      plan.features.forEach((feature) => codes.add(feature.code));
+    });
+    return Array.from(codes);
+  }, [orderedPlans]);
 
   const loadBillingData = useCallback(async (showRefreshing = true) => {
     if (showRefreshing) {
@@ -269,7 +310,12 @@ export default function SubscriptionPage() {
       ]);
 
       if (plansData.status === "fulfilled") {
-        setPlans(plansData.value);
+        setPlans(plansData.value.plans);
+        setPlanCatalog({
+          comparison_note: plansData.value.comparison_note,
+          billing_cycle_notes: plansData.value.billing_cycle_notes,
+          expiry_note: plansData.value.expiry_note,
+        });
       }
       if (subData.status === "fulfilled") {
         setCurrentSubscription(subData.value);
@@ -297,7 +343,12 @@ export default function SubscriptionPage() {
       ]);
 
       if (planRes.status === "fulfilled") {
-        setPlans(planRes.value);
+        setPlans(planRes.value.plans);
+        setPlanCatalog({
+          comparison_note: planRes.value.comparison_note,
+          billing_cycle_notes: planRes.value.billing_cycle_notes,
+          expiry_note: planRes.value.expiry_note,
+        });
       }
       if (subscriptionRes.status === "fulfilled") {
         setCurrentSubscription(subscriptionRes.value);
@@ -313,26 +364,6 @@ export default function SubscriptionPage() {
     void loadInitialData();
   }, [loadInitialData]);
 
-  const handleSubscribe = async (planSlug: string) => {
-    setSubscribing(planSlug);
-    try {
-      const subscription = await SubscriptionService.subscribe({
-        plan_slug: planSlug,
-        billing_cycle: billingCycle,
-      });
-      setCurrentSubscription(subscription);
-      setBillingCycle(subscription.billing_cycle);
-      toast.success("Subscribed", { description: "Your subscription is now active" });
-      await loadBillingData(false);
-    } catch (error: unknown) {
-      toast.error("Subscription failed", {
-        description: getErrorMessage(error, "Failed to subscribe."),
-      });
-    } finally {
-      setSubscribing(null);
-    }
-  };
-
   const handleCreatePayment = async (plan: Plan) => {
     setCreatingPayment(plan.slug);
     try {
@@ -347,10 +378,10 @@ export default function SubscriptionPage() {
 
       setLastTransactionId(result.transaction_id);
       toast.success("Payment session ready", {
-        description: "Redirecting to secure checkout in a new tab.",
+        description: "Redirecting to secure checkout.",
       });
       if (typeof window !== "undefined") {
-        window.open(result.redirect_url, "_blank", "noopener,noreferrer");
+        window.location.assign(result.redirect_url);
       }
 
       await loadBillingData(false);
@@ -537,14 +568,35 @@ export default function SubscriptionPage() {
 
   const getPlanIcon = (slug: string) => {
     switch (slug) {
-      case "basic":
+      case "free":
         return <Zap className="text-blue-500" size={24} />;
+      case "starter":
+        return <Sparkles className="text-cyan-500" size={24} />;
       case "pro":
-        return <Sparkles className="text-emerald-500" size={24} />;
+        return <Crown className="text-emerald-500" size={24} />;
+      case "business":
+        return <ShieldCheck className="text-violet-500" size={24} />;
       case "enterprise":
-        return <Crown className="text-amber-500" size={24} />;
+        return <Shield className="text-amber-500" size={24} />;
       default:
         return <Shield className="text-gray-500" size={24} />;
+    }
+  };
+
+  const getPlanAccentClass = (slug: string) => {
+    switch (slug) {
+      case "free":
+        return "from-slate-500/30 via-slate-400/10 to-transparent";
+      case "starter":
+        return "from-cyan-500/30 via-cyan-400/10 to-transparent";
+      case "pro":
+        return "from-emerald-500/30 via-emerald-400/10 to-transparent";
+      case "business":
+        return "from-violet-500/30 via-violet-400/10 to-transparent";
+      case "enterprise":
+        return "from-amber-500/30 via-amber-400/10 to-transparent";
+      default:
+        return "from-gray-500/30 via-gray-400/10 to-transparent";
     }
   };
 
@@ -727,6 +779,14 @@ export default function SubscriptionPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant="outline"
+                    className="bg-white dark:bg-gray-900"
+                    onClick={() => setShowSubscriptionDetails((prev) => !prev)}
+                  >
+                    {showSubscriptionDetails ? "See Less" : "See More"}
+                  </Button>
+
+                  <Button
+                    variant="outline"
                     disabled={updatingOverage}
                     className="bg-white dark:bg-gray-900"
                     onClick={handleToggleOverage}
@@ -752,59 +812,88 @@ export default function SubscriptionPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Included Features
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/60">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Features</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {currentSubscription.plan.features.length}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {currentSubscription.plan.features.map((feature) => (
-                      <Badge
-                        key={feature.id}
-                        variant="outline"
-                        className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
-                      >
-                        <Check size={12} />
-                        {feature.name}
-                      </Badge>
-                    ))}
-                  </div>
                 </div>
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    Plan Quotas
+                <div className="rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/60">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Quota Rules</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {currentSubscription.plan.quotas.length}
                   </p>
-                  <div className="mt-3 space-y-2">
-                    {currentSubscription.plan.quotas.map((quota) => (
-                      <div
-                        key={quota.feature_code}
-                        className="flex items-center justify-between rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900/60"
-                      >
-                        <span className="text-gray-600 dark:text-gray-300">
-                          {QUOTA_LABELS[quota.feature_code] ||
-                            toTitleCase(quota.feature_code)}
-                        </span>
-                        <span className="font-semibold text-gray-900 dark:text-gray-100">
-                          {quota.limit > 0 ? quota.limit : "Unlimited"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                </div>
+                <div className="rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/60">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {toTitleCase(currentSubscription.status)}
+                  </p>
                 </div>
               </div>
+
+              {showSubscriptionDetails && (
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Included Features
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {currentSubscription.plan.features.length > 0 ? (
+                        currentSubscription.plan.features.map((feature) => (
+                          <Badge
+                            key={feature.id}
+                            variant="outline"
+                            className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                          >
+                            <Check size={12} />
+                            {feature.name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          No feature metadata is configured for this plan yet.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      Plan Quotas
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {currentSubscription.plan.quotas.map((quota) => (
+                        <div
+                          key={quota.feature_code}
+                          className="flex items-center justify-between rounded-xl border border-gray-200/70 bg-white/80 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900/60"
+                        >
+                          <span className="text-gray-600 dark:text-gray-300">
+                            {QUOTA_LABELS[quota.feature_code] ||
+                              toTitleCase(quota.feature_code)}
+                          </span>
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">
+                            {quota.limit > 0 ? quota.limit : "Unlimited"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
-          <section className="space-y-4">
+          <section id="plans" className="space-y-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Plans and Promotions
                 </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Integrates: list plans, subscribe, create payment, validate coupon,
-                  apply coupon.
+                <p className="mt-1 max-w-3xl text-sm text-gray-600 dark:text-gray-300">
+                  {planCatalog?.comparison_note ||
+                    "Monthly subscriptions end after 1 month, yearly subscriptions end after 1 year, and expired paid plans automatically switch back to Free."}
                 </p>
               </div>
 
@@ -837,16 +926,18 @@ export default function SubscriptionPage() {
                   )}
                 </Button>
               </div>
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                {sharedBillingNote}
+              </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-3 stagger-children">
-                {sortedPlans.map((plan) => {
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 stagger-children">
+                {promotionPlans.map((plan) => {
                   const isCurrentPlan =
                     currentSubscription?.plan.slug === plan.slug &&
                     currentSubscription.status !== "CANCELED";
                   const price = getPlanPrice(plan, billingCycle);
-                  const hasPrice = parseFloat(price) > 0;
                   const yearlySavings = calculateSavings(
                     plan.price_monthly,
                     plan.price_yearly
@@ -855,12 +946,14 @@ export default function SubscriptionPage() {
                   return (
                     <div
                       key={plan.id}
-                      className={`relative rounded-2xl border p-5 shadow-sm transition-all card-hover ${
+                      className={`group relative overflow-hidden rounded-[28px] border p-5 shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 card-hover ${
                         isCurrentPlan
-                          ? "border-emerald-400 bg-emerald-50/70 dark:border-emerald-700 dark:bg-emerald-950/20"
-                          : "border-gray-200 bg-white/85 dark:border-gray-700 dark:bg-gray-900/70"
+                          ? "border-emerald-400 bg-linear-to-b from-emerald-50 via-white to-white dark:border-emerald-700 dark:from-emerald-950/20 dark:via-gray-900 dark:to-gray-900"
+                          : "border-gray-200 bg-linear-to-b from-white via-white to-slate-50/70 dark:border-gray-700 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950"
                       }`}
                     >
+                      <div className={`absolute inset-x-0 top-0 h-1 bg-linear-to-r ${getPlanAccentClass(plan.slug)}`} />
+                      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-radial-[at_50%_0%] from-white/30 via-transparent to-transparent dark:from-white/10" />
                       <div className="flex items-start justify-between">
                         <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800">
                           {getPlanIcon(plan.slug)}
@@ -895,6 +988,28 @@ export default function SubscriptionPage() {
                         )}
                       </div>
 
+                      <div className="mt-4">
+                        {isCurrentPlan ? (
+                          <Button className="w-full" disabled>
+                            <Check size={16} />
+                            Current plan
+                          </Button>
+                        ) : (
+                          <Button
+                            className="w-full bg-linear-to-r from-emerald-500 to-teal-600 text-white"
+                            disabled={creatingPayment === plan.slug}
+                            onClick={() => void handleCreatePayment(plan)}
+                          >
+                            {creatingPayment === plan.slug ? (
+                              <Loader2 className="animate-spin" size={16} />
+                            ) : (
+                              <WalletCards size={16} />
+                            )}
+                            Subscribe
+                          </Button>
+                        )}
+                      </div>
+
                       <div className="mt-4 space-y-2">
                         {plan.features.slice(0, 4).map((feature) => (
                           <div key={feature.id} className="flex items-start gap-2 text-sm">
@@ -906,61 +1021,34 @@ export default function SubscriptionPage() {
                         ))}
                       </div>
 
-                      <div className="mt-5 space-y-2">
-                        {isCurrentPlan ? (
-                          <Button className="w-full" disabled>
-                            <Check size={16} />
-                            Already Active
-                          </Button>
-                        ) : (
-                          <>
-                            <Button
-                              className="w-full bg-linear-to-r from-emerald-500 to-teal-600 text-white"
-                              disabled={subscribing === plan.slug}
-                              onClick={() => void handleSubscribe(plan.slug)}
-                            >
-                              {subscribing === plan.slug ? (
-                                <Loader2 className="animate-spin" size={16} />
-                              ) : currentSubscription ? (
-                                isUpgrade(currentSubscription.plan.slug, plan.slug) ? (
-                                  <ArrowUpCircle size={16} />
-                                ) : (
-                                  <ArrowDownCircle size={16} />
-                                )
-                              ) : (
-                                <ChevronRight size={16} />
-                              )}
-                              {currentSubscription
-                                ? isUpgrade(currentSubscription.plan.slug, plan.slug)
-                                  ? "Upgrade Plan"
-                                  : "Switch Plan"
-                                : "Activate Plan"}
-                            </Button>
-
-                            {hasPrice && (
-                              <Button
-                                variant="outline"
-                                className="w-full bg-white dark:bg-gray-900"
-                                disabled={creatingPayment === plan.slug}
-                                onClick={() => void handleCreatePayment(plan)}
+                      {plan.quotas.length > 0 && (
+                        <div className="mt-4 rounded-2xl border border-gray-200/70 bg-white/75 p-3 dark:border-gray-700 dark:bg-gray-950/40">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Plan Limits
+                          </p>
+                          <div className="mt-2 space-y-1.5">
+                            {plan.quotas.slice(0, 4).map((quota) => (
+                              <div
+                                key={`${plan.slug}-${quota.feature_code}`}
+                                className="flex items-center justify-between text-xs"
                               >
-                                {creatingPayment === plan.slug ? (
-                                  <Loader2 className="animate-spin" size={16} />
-                                ) : (
-                                  <WalletCards size={16} />
-                                )}
-                                Pay via {toTitleCase(DEFAULT_PAYMENT_GATEWAY)}
-                              </Button>
-                            )}
-                          </>
-                        )}
-                      </div>
+                                <span className="text-gray-600 dark:text-gray-300">
+                                  {QUOTA_LABELS[quota.feature_code] || toTitleCase(quota.feature_code)}
+                                </span>
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                  {quota.limit > 0 ? quota.limit : "Unlimited"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
-              <aside className="rounded-2xl border border-gray-200 bg-white/85 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
+              <aside className="self-start h-fit rounded-2xl border border-gray-200 bg-white/85 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
                 <div className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
                   <TicketPercent className="text-emerald-500" size={18} />
                   <h3 className="text-lg font-semibold">Coupon Studio</h3>
@@ -1056,6 +1144,122 @@ export default function SubscriptionPage() {
                   </div>
                 )}
               </aside>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-gray-200 bg-white/85 p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/70">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Plan Comparison
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Compare paid plans side-by-side from backend features and quota limits.
+                </p>
+              </div>
+              <Badge variant="outline" className="w-fit">
+                {billingCycle === "monthly" ? "Monthly View" : "Yearly View"}
+              </Badge>
+            </div>
+
+            <div className="mt-6 overflow-x-auto rounded-2xl border border-gray-200/70 dark:border-gray-700/70">
+              <table className="min-w-240 w-full border-separate border-spacing-0 text-sm">
+                <thead>
+                  <tr className="bg-gray-50/80 dark:bg-gray-900/80">
+                    <th className="sticky left-0 z-10 border-b border-gray-200/70 bg-gray-50/90 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                      Plans
+                    </th>
+                    {comparisonPaidPlans.map((plan) => (
+                      <th
+                        key={`comparison-head-${plan.slug}`}
+                        className="min-w-45 border-b border-gray-200/70 px-4 py-3 text-left dark:border-gray-700"
+                      >
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                          {toTitleCase(plan.name)}
+                        </p>
+                        <p className="mt-0.5 text-xs font-normal text-gray-500 dark:text-gray-400">
+                          {formatMoney(
+                            getPlanPrice(plan, billingCycle),
+                            invoiceSummary?.currency || "USD"
+                          )}
+                          /{billingCycle === "monthly" ? "mo" : "yr"}
+                        </p>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td
+                      colSpan={comparisonPaidPlans.length + 1}
+                      className="border-b border-gray-200/50 bg-emerald-50/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:border-gray-700/60 dark:bg-emerald-950/20 dark:text-emerald-300"
+                    >
+                      Plan Limits
+                    </td>
+                  </tr>
+
+                  {comparisonQuotaCodes.map((quotaCode) => (
+                    <tr key={`quota-row-${quotaCode}`} className="odd:bg-white/60 even:bg-gray-50/40 dark:odd:bg-gray-900/20 dark:even:bg-gray-900/40">
+                      <td className="sticky left-0 z-10 border-b border-gray-200/50 bg-inherit px-4 py-2.5 font-medium text-gray-700 dark:border-gray-700/60 dark:text-gray-300">
+                        {QUOTA_LABELS[quotaCode] || toTitleCase(quotaCode)}
+                      </td>
+                      {comparisonPaidPlans.map((plan) => {
+                        const limit = getPlanQuotaLimit(plan, quotaCode);
+                        return (
+                          <td
+                            key={`quota-${quotaCode}-${plan.slug}`}
+                            className="border-b border-gray-200/50 px-4 py-2.5 font-semibold text-gray-900 dark:border-gray-700/60 dark:text-gray-100"
+                          >
+                            {typeof limit === "number"
+                              ? limit > 0
+                                ? limit
+                                : "Unlimited"
+                              : "-"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+
+                  <tr>
+                    <td
+                      colSpan={comparisonPaidPlans.length + 1}
+                      className="border-b border-gray-200/50 bg-violet-50/60 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-violet-700 dark:border-gray-700/60 dark:bg-violet-950/20 dark:text-violet-300"
+                    >
+                      Features
+                    </td>
+                  </tr>
+
+                  {comparisonFeatureCodes.map((featureCode) => (
+                    <tr key={`feature-row-${featureCode}`} className="odd:bg-white/60 even:bg-gray-50/40 dark:odd:bg-gray-900/20 dark:even:bg-gray-900/40">
+                      <td className="sticky left-0 z-10 border-b border-gray-200/50 bg-inherit px-4 py-2.5 font-medium text-gray-700 dark:border-gray-700/60 dark:text-gray-300">
+                        {toTitleCase(featureCode)}
+                      </td>
+                      {comparisonPaidPlans.map((plan) => {
+                        const enabled = plan.features.some(
+                          (item) => item.code === featureCode
+                        );
+                        return (
+                          <td
+                            key={`feature-${featureCode}-${plan.slug}`}
+                            className="border-b border-gray-200/50 px-4 py-2.5 dark:border-gray-700/60"
+                          >
+                            <span
+                              className={
+                                enabled
+                                  ? "font-medium text-emerald-600 dark:text-emerald-300"
+                                  : "text-gray-400"
+                              }
+                            >
+                              {enabled ? "Included" : "-"}
+                            </span>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </section>
 

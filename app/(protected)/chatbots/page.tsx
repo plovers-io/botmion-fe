@@ -353,7 +353,7 @@ export default function ChatbotsPage() {
       />
 
       {/* Chat Slide-over Panel */}
-      <ChatPanel chatbot={chatBot} open={chatOpen} onOpenChange={setChatOpen} />
+      <ChatPanel chatbot={chatBot} open={chatOpen} onOpenChange={setChatOpen} allowLauncherDismiss />
     </div>
   );
 }

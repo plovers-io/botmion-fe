@@ -50,6 +50,14 @@ export interface Plan {
   updated_at?: string;
 }
 
+export interface PlanCatalogResponse {
+  plans: Plan[];
+  plan_sequence: string[];
+  comparison_note: string;
+  billing_cycle_notes: Record<BillingCycle, string>;
+  expiry_note: string;
+}
+
 export interface Subscription {
   id: number;
   plan: Plan;

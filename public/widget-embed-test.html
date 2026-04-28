@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Botmion Widget Embed Test</title>
+    <style>
+      :root {
+        --bg: #f4f7fb;
+        --card: #ffffff;
+        --text: #10243b;
+        --muted: #5f7288;
+        --accent: #0e9f6e;
+        --accent-dark: #0a7f57;
+        --border: #dbe4ee;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+        background: radial-gradient(circle at top right, #d8f8eb 0%, #f4f7fb 50%);
+        color: var(--text);
+      }
+      .container {
+        max-width: 980px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 14px 36px rgba(16, 36, 59, 0.08);
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 26px;
+      }
+      .desc {
+        margin: 0 0 18px;
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      input {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .primary {
+        background: linear-gradient(90deg, var(--accent), #06b6d4);
+        color: #fff;
+      }
+      .primary:hover { filter: brightness(0.95); }
+      .secondary {
+        background: #eff5fb;
+        color: #223b55;
+        border: 1px solid #d0deec;
+      }
+      pre {
+        margin: 0;
+        background: #0f172a;
+        color: #b6ffdb;
+        border-radius: 12px;
+        padding: 12px;
+        overflow-x: auto;
+        font-size: 13px;
+      }
+      .snippets {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .snippet-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+      .hint {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #f7fbff;
+        border: 1px solid #d8e8f6;
+        color: #365268;
+        font-size: 13px;
+      }
+      .preview {
+        margin-top: 14px;
+        border: 1px dashed #9cc5df;
+        border-radius: 12px;
+        padding: 12px;
+        background: #fcfeff;
+      }
+      iframe {
+        width: 100%;
+        height: 620px;
+        border: 0;
+        border-radius: 12px;
+      }
+      .status {
+        margin-top: 10px;
+        font-size: 13px;
+        color: #365268;
+      }
+      @media (max-width: 860px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>Botmion Embed Tester</h1>
+        <p class="desc">
+          Use this page to verify JavaScript Snippet and Iframe Embed quickly.
+        </p>
+
+        <div class="grid">
+          <div>
+            <label for="chatbotUuid">Chatbot UUID</label>
+            <input id="chatbotUuid" placeholder="e.g. 384adfd9-e78a-4478-9264-c75ca7fe1cc4" />
+          </div>
+          <div>
+            <label for="botsBase">Backend Bots Base URL</label>
+            <input id="botsBase" value="http://localhost:8000/bots" />
+          </div>
+          <div>
+            <label for="frontendBase">Frontend Base URL</label>
+            <input id="frontendBase" value="http://localhost:3000" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="generateBtn">Generate Snippets</button>
+          <button class="secondary" id="copyScriptBtn">Copy Script Snippet</button>
+          <button class="secondary" id="copyIframeBtn">Copy Iframe Snippet</button>
+          <button class="secondary" id="injectScriptBtn">Inject Script On This Page</button>
+          <button class="secondary" id="loadIframeBtn">Load Iframe Preview</button>
+        </div>
+
+        <div class="snippets">
+          <div>
+            <div class="snippet-head">
+              <strong>JavaScript Snippet</strong>
+            </div>
+            <pre id="scriptSnippet"></pre>
+          </div>
+          <div>
+            <div class="snippet-head">
+              <strong>Iframe Embed</strong>
+            </div>
+            <pre id="iframeSnippet"></pre>
+          </div>
+        </div>
+
+        <div class="hint">
+          Before testing, add this origin in Allowed Domains: <strong id="originText"></strong>
+        </div>
+
+        <div class="preview">
+          <strong>Iframe Preview</strong>
+          <iframe id="previewFrame" title="Botmion iframe preview"></iframe>
+          <div class="status" id="statusText">Ready</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const chatbotUuid = document.getElementById("chatbotUuid");
+        const botsBase = document.getElementById("botsBase");
+        const frontendBase = document.getElementById("frontendBase");
+        const scriptSnippet = document.getElementById("scriptSnippet");
+        const iframeSnippet = document.getElementById("iframeSnippet");
+        const previewFrame = document.getElementById("previewFrame");
+        const statusText = document.getElementById("statusText");
+        const originText = document.getElementById("originText");
+
+        let currentScript = "";
+        let currentIframe = "";
+        let currentScriptUrl = "";
+        let currentIframeUrl = "";
+
+        function normalizeUrl(url) {
+          return String(url || "").trim().replace(/\/+$/, "");
+        }
+
+        function setStatus(text) {
+          statusText.textContent = text;
+        }
+
+        function generate() {
+          const uuid = String(chatbotUuid.value || "").trim();
+          const bots = normalizeUrl(botsBase.value);
+          const fe = normalizeUrl(frontendBase.value);
+
+          if (!uuid) {
+            setStatus("Please provide chatbot UUID first.");
+            return;
+          }
+
+          currentScriptUrl = `${bots}/v1/widget/${uuid}/embed.js/`;
+          currentIframeUrl = `${fe}/chat/${uuid}`;
+
+          currentScript = `<script src="${currentScriptUrl}" async><\/script>`;
+          currentIframe = `<iframe\n  src="${currentIframeUrl}"\n  width="400"\n  height="600"\n  frameborder="0"\n  style="border:none; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.12);"\n></iframe>`;
+
+          scriptSnippet.textContent = currentScript;
+          iframeSnippet.textContent = currentIframe;
+          originText.textContent = window.location.origin;
+
+          setStatus("Snippets generated.");
+        }
+
+        async function copyText(text, label) {
+          if (!text) {
+            setStatus(`Generate snippets first before copying ${label}.`);
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(text);
+            setStatus(`${label} copied.`);
+          } catch (err) {
+            setStatus(`Clipboard failed for ${label}.`);
+          }
+        }
+
+        function injectScript() {
+          if (!currentScriptUrl) {
+            setStatus("Generate snippets first.");
+            return;
+          }
+
+          const existing = document.getElementById("botmion-test-script");
+          if (existing) existing.remove();
+
+          const el = document.createElement("script");
+          el.id = "botmion-test-script";
+          el.src = currentScriptUrl;
+          el.async = true;
+          el.onload = function () {
+            setStatus("Script loaded. Check for floating chat bubble.");
+          };
+          el.onerror = function () {
+            setStatus("Script load failed. Check publish status, allowed origin, and URL.");
+          };
+
+          document.body.appendChild(el);
+          setStatus("Injecting script...");
+        }
+
+        function loadIframePreview() {
+          if (!currentIframeUrl) {
+            setStatus("Generate snippets first.");
+            return;
+          }
+          previewFrame.src = currentIframeUrl;
+          setStatus("Iframe preview loaded.");
+        }
+
+        document.getElementById("generateBtn").addEventListener("click", generate);
+        document.getElementById("copyScriptBtn").addEventListener("click", function () {
+          copyText(currentScript, "Script snippet");
+        });
+        document.getElementById("copyIframeBtn").addEventListener("click", function () {
+          copyText(currentIframe, "Iframe snippet");
+        });
+        document.getElementById("injectScriptBtn").addEventListener("click", injectScript);
+        document.getElementById("loadIframeBtn").addEventListener("click", loadIframePreview);
+
+        chatbotUuid.value = new URLSearchParams(window.location.search).get("uuid") || "";
+        if (chatbotUuid.value.trim()) {
+          generate();
+          injectScript();
+          setStatus("Floating widget auto-loaded. Click the bottom-right icon to open chat.");
+        } else {
+          setStatus("Enter chatbot UUID, then generate snippets.");
+        }
+      })();
+    </script>
+  </body>
+</html>
