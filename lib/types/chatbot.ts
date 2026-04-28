@@ -19,6 +19,7 @@ export interface ChatbotUI {
   window_size: WindowSize;
 }
 
+
 export interface RAGConfig {
   top_k: number;
   score_threshold: number;
