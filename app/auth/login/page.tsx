@@ -5,12 +5,22 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, Loader } from "lucide-react";
 import { goeyToast as toast } from "goey-toast";
+import * as yup from "yup";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
 import { AuthService } from "@/lib/services/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+const loginSchema = yup.object({
+  email: yup
+    .string()
+    .trim()
+    .required("Email is required")
+    .email("Please enter a valid email"),
+  password: yup.string().required("Password is required"),
+});
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,21 +31,25 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast.error("Validation Error", { description: "Please fill in all fields" });
-      return;
-    }
+    setErrors({});
 
-    if (!validateEmail(email)) {
-      toast.error("Validation Error", { description: "Please enter a valid email" });
+    try {
+      await loginSchema.validate({ email, password }, { abortEarly: false });
+    } catch (validationError) {
+      if (validationError instanceof yup.ValidationError) {
+        const nextErrors: Record<string, string> = {};
+        validationError.inner.forEach((issue) => {
+          if (issue.path && !nextErrors[issue.path]) {
+            nextErrors[issue.path] = issue.message;
+          }
+        });
+        setErrors(nextErrors);
+      }
+      toast.error("Validation Error", { description: "Please check your entries" });
       return;
     }
 
@@ -114,11 +128,16 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 py-5 rounded-xl"
+                className={`pl-10 py-5 rounded-xl ${
+                  errors.email ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter your email"
                 disabled={loading}
               />
             </div>
+            {errors.email && (
+              <p className="mt-1 text-xs text-rose-600">{errors.email}</p>
+            )}
           </div>
 
           {/* Password Input */}
@@ -135,7 +154,9 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 pr-12 py-5 rounded-xl"
+                className={`pl-10 pr-12 py-5 rounded-xl ${
+                  errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter your password"
                 disabled={loading}
               />
@@ -148,6 +169,9 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-xs text-rose-600">{errors.password}</p>
+            )}
           </div>
 
           {/* Forgot Password Link */}

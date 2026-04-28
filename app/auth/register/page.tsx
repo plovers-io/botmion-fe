@@ -5,11 +5,42 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, Loader } from "lucide-react";
 import { goeyToast as toast } from "goey-toast";
+import * as yup from "yup";
 import { AuthService } from "@/lib/services/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordStrength } from "@/components/common/password-strength";
+import { getPasswordScore, PASSWORD_REQUIREMENTS } from "@/lib/utils/password";
+
+const registerSchema = yup.object({
+  first_name: yup
+    .string()
+    .trim()
+    .required("First name is required")
+    .max(60, "First name is too long")
+    .matches(/^[^<>]*$/, "First name contains invalid characters"),
+  last_name: yup
+    .string()
+    .trim()
+    .required("Last name is required")
+    .max(60, "Last name is too long")
+    .matches(/^[^<>]*$/, "Last name contains invalid characters"),
+  email: yup
+    .string()
+    .trim()
+    .required("Email is required")
+    .email("Please enter a valid email"),
+  password: yup
+    .string()
+    .required("Password is required")
+    .min(8, "Password must be at least 8 characters")
+    .matches(/[A-Z]/, "Add at least one uppercase letter")
+    .matches(/[a-z]/, "Add at least one lowercase letter")
+    .matches(/\d/, "Add at least one number")
+    .matches(/[^A-Za-z0-9]/, "Add at least one special character"),
+});
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -23,14 +54,10 @@ export default function RegisterPage() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
-
-  const validatePassword = (password: string) => {
-    return password.length >= 8;
-  };
+  const passwordScore = getPasswordScore(formData.password);
+  const passwordReady = passwordScore === PASSWORD_REQUIREMENTS.length;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -41,25 +68,23 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validation
-    if (
-      !formData.email ||
-      !formData.password ||
-      !formData.first_name ||
-      !formData.last_name
-    ) {
-      toast.error("Validation Error", { description: "Please fill in all fields" });
-      return;
-    }
+    setErrors({});
 
-    if (!validateEmail(formData.email)) {
-      toast.error("Validation Error", { description: "Please enter a valid email" });
-      return;
-    }
-
-    if (!validatePassword(formData.password)) {
-      toast.error("Validation Error", { description: "Password must be at least 8 characters long" });
+    try {
+      await registerSchema.validate(formData, { abortEarly: false });
+    } catch (validationError) {
+      if (validationError instanceof yup.ValidationError) {
+        const nextErrors: Record<string, string> = {};
+        validationError.inner.forEach((issue) => {
+          if (issue.path && !nextErrors[issue.path]) {
+            nextErrors[issue.path] = issue.message;
+          }
+        });
+        setErrors(nextErrors);
+      }
+      toast.error("Validation Error", {
+        description: "Please review the highlighted fields",
+      });
       return;
     }
 
@@ -127,11 +152,16 @@ export default function RegisterPage() {
                 name="first_name"
                 value={formData.first_name}
                 onChange={handleChange}
-                className="pl-10 py-5 rounded-xl"
+                className={`pl-10 py-5 rounded-xl ${
+                  errors.first_name ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter your first name"
                 disabled={loading}
               />
             </div>
+            {errors.first_name && (
+              <p className="mt-1 text-xs text-rose-600">{errors.first_name}</p>
+            )}
           </div>
 
           {/* Last Name */}
@@ -149,11 +179,16 @@ export default function RegisterPage() {
                 name="last_name"
                 value={formData.last_name}
                 onChange={handleChange}
-                className="pl-10 py-5 rounded-xl"
+                className={`pl-10 py-5 rounded-xl ${
+                  errors.last_name ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter your last name"
                 disabled={loading}
               />
             </div>
+            {errors.last_name && (
+              <p className="mt-1 text-xs text-rose-600">{errors.last_name}</p>
+            )}
           </div>
 
           {/* Email */}
@@ -171,11 +206,16 @@ export default function RegisterPage() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="pl-10 py-5 rounded-xl"
+                className={`pl-10 py-5 rounded-xl ${
+                  errors.email ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter your email"
                 disabled={loading}
               />
             </div>
+            {errors.email && (
+              <p className="mt-1 text-xs text-rose-600">{errors.email}</p>
+            )}
           </div>
 
           {/* Password */}
@@ -193,7 +233,9 @@ export default function RegisterPage() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="pl-10 pr-12 py-5 rounded-xl"
+                className={`pl-10 pr-12 py-5 rounded-xl ${
+                  errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter your password (min 8 characters)"
                 disabled={loading}
               />
@@ -206,12 +248,18 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-xs text-rose-600">{errors.password}</p>
+            )}
+            <div className="mt-3">
+              <PasswordStrength password={formData.password} />
+            </div>
           </div>
 
           {/* Register Button */}
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !passwordReady}
             className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (

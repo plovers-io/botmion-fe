@@ -5,11 +5,29 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Lock, Eye, EyeOff, Loader, CheckCircle } from "lucide-react";
 import { goeyToast as toast } from "goey-toast";
+import * as yup from "yup";
 import { AuthService } from "@/lib/services/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordStrength } from "@/components/common/password-strength";
+import { getPasswordScore, PASSWORD_REQUIREMENTS } from "@/lib/utils/password";
+
+const resetSchema = yup.object({
+  password: yup
+    .string()
+    .required("Password is required")
+    .min(8, "Password must be at least 8 characters")
+    .matches(/[A-Z]/, "Add at least one uppercase letter")
+    .matches(/[a-z]/, "Add at least one lowercase letter")
+    .matches(/\d/, "Add at least one number")
+    .matches(/[^A-Za-z0-9]/, "Add at least one special character"),
+  confirmPassword: yup
+    .string()
+    .required("Confirm password is required")
+    .oneOf([yup.ref("password")], "Passwords do not match"),
+});
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -22,40 +40,70 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(false);
   const [resetToken, setResetToken] = useState("");
   const [email, setEmail] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const passwordScore = getPasswordScore(password);
+  const passwordReady = passwordScore === PASSWORD_REQUIREMENTS.length;
+  const confirmationReady = password && confirmPassword && password === confirmPassword;
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    const tokenParam = searchParams.get("token");
     const emailParam = searchParams.get("email");
-    
-    if (!token) {
-      toast.error("Invalid Link", { description: "This reset link is invalid or expired" });
-      router.push("/auth/forgot-password");
+
+    if (typeof window !== "undefined") {
+      if (tokenParam) {
+        window.sessionStorage.setItem("reset_token", tokenParam);
+        setResetToken(tokenParam);
+      }
+      if (emailParam) {
+        window.sessionStorage.setItem("reset_email", emailParam);
+        setEmail(emailParam);
+      }
+    }
+
+    if (tokenParam || emailParam) {
+      router.replace("/auth/reset-password");
       return;
     }
-    
-    setResetToken(token);
-    if (emailParam) setEmail(emailParam);
-  }, [searchParams, router]);
 
-  const validatePassword = (password: string) => {
-    return password.length >= 8;
-  };
+    if (typeof window !== "undefined") {
+      const storedToken = window.sessionStorage.getItem("reset_token");
+      const storedEmail = window.sessionStorage.getItem("reset_email");
+
+      if (storedToken) {
+        setResetToken(storedToken);
+      }
+      if (storedEmail) {
+        setEmail(storedEmail);
+      }
+
+      if (!storedToken) {
+        toast.error("Invalid Link", {
+          description: "This reset link is invalid or expired",
+        });
+        router.push("/auth/forgot-password");
+      }
+    }
+  }, [searchParams, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!password || !confirmPassword) {
-      toast.error("Validation Error", { description: "Please fill in all fields" });
-      return;
-    }
-
-    if (!validatePassword(password)) {
-      toast.error("Validation Error", { description: "Password must be at least 8 characters long" });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error("Validation Error", { description: "Passwords do not match" });
+    setErrors({});
+    try {
+      await resetSchema.validate({ password, confirmPassword }, { abortEarly: false });
+    } catch (validationError) {
+      if (validationError instanceof yup.ValidationError) {
+        const nextErrors: Record<string, string> = {};
+        validationError.inner.forEach((issue) => {
+          if (issue.path && !nextErrors[issue.path]) {
+            nextErrors[issue.path] = issue.message;
+          }
+        });
+        setErrors(nextErrors);
+      }
+      toast.error("Validation Error", {
+        description: "Please review the highlighted fields",
+      });
       return;
     }
 
@@ -74,6 +122,11 @@ function ResetPasswordContent() {
       });
 
       toast.success("Password Reset", { description: response.message || "Your password has been reset successfully" });
+
+      if (typeof window !== "undefined") {
+        window.sessionStorage.removeItem("reset_token");
+        window.sessionStorage.removeItem("reset_email");
+      }
       
       // Redirect to login page after successful reset
       setTimeout(() => {
@@ -129,7 +182,9 @@ function ResetPasswordContent() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 pr-12 py-5 rounded-xl"
+                className={`pl-10 pr-12 py-5 rounded-xl ${
+                  errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter new password (min 8 characters)"
                 disabled={loading}
               />
@@ -142,6 +197,9 @@ function ResetPasswordContent() {
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-xs text-rose-600">{errors.password}</p>
+            )}
           </div>
 
           {/* Confirm Password */}
@@ -158,7 +216,11 @@ function ResetPasswordContent() {
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="pl-10 pr-12 py-5 rounded-xl"
+                className={`pl-10 pr-12 py-5 rounded-xl ${
+                  errors.confirmPassword
+                    ? "border-rose-500 focus-visible:ring-rose-500"
+                    : ""
+                }`}
                 placeholder="Confirm your new password"
                 disabled={loading}
               />
@@ -171,23 +233,19 @@ function ResetPasswordContent() {
                 {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+            {errors.confirmPassword && (
+              <p className="mt-1 text-xs text-rose-600">
+                {errors.confirmPassword}
+              </p>
+            )}
           </div>
 
-          {/* Password Requirements */}
-          <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/60 dark:border-emerald-500/20 rounded-xl p-3">
-            <p className="text-sm text-emerald-800 dark:text-emerald-300 font-medium mb-1">
-              Password Requirements:
-            </p>
-            <ul className="text-xs text-emerald-600 dark:text-emerald-400 space-y-1 ml-4 list-disc">
-              <li>At least 8 characters long</li>
-              <li>Mix of letters and numbers recommended</li>
-            </ul>
-          </div>
+          <PasswordStrength password={password} />
 
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !passwordReady || !confirmationReady}
             className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
