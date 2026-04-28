@@ -92,6 +92,10 @@ function getTokensFromStore() {
   };
 }
 
+function authErrorMessageFromResponse(data: unknown): string {
+  return extractApiErrorMessage(data, "").toLowerCase();
+}
+
 class ApiClient {
   private axiosInstance: AxiosInstance;
   private isRefreshing = false;
@@ -99,6 +103,22 @@ class ApiClient {
     resolve: (value?: unknown) => void;
     reject: (reason?: unknown) => void;
   }> = [];
+
+  private static readonly AUTH_403_HINTS = [
+    "authentication credentials were not provided",
+    "invalid token",
+    "token has expired",
+    "not authenticated",
+    "authentication failed",
+    "unauthorized",
+  ];
+
+  private static readonly NO_REFRESH_ENDPOINTS = [
+    "/v1/login/",
+    "/v1/register/",
+    "/v1/refresh/",
+    "/v1/logout/",
+  ];
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -126,12 +146,19 @@ class ApiClient {
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & {
+        const originalRequest = (error.config as InternalAxiosRequestConfig & {
           _retry?: boolean;
-        };
+        }) || undefined;
 
-        // If error is 401 and we haven't retried yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        const statusCode = error.response?.status;
+        const isAuthErrorStatus = statusCode === 401 || statusCode === 403;
+        const shouldTryRefresh =
+          !!originalRequest &&
+          !originalRequest._retry &&
+          this.shouldAttemptRefresh(error, originalRequest);
+
+        // Try token refresh once for auth-related failures.
+        if (shouldTryRefresh) {
           if (this.isRefreshing) {
             // Wait for the refresh to complete
             return new Promise((resolve, reject) => {
@@ -153,11 +180,7 @@ class ApiClient {
 
           if (!refreshToken) {
             this.isRefreshing = false;
-            // Clear auth state and redirect to login
-            useAuthStore.getState().clearAuth();
-            if (typeof window !== "undefined") {
-              window.location.href = "/auth/login";
-            }
+            this.clearAuthAndRedirect();
             return Promise.reject(error);
           }
 
@@ -187,14 +210,15 @@ class ApiClient {
             this.processQueue(refreshError);
             this.isRefreshing = false;
 
-            // Clear auth state and redirect to login
-            useAuthStore.getState().clearAuth();
-            if (typeof window !== "undefined") {
-              window.location.href = "/auth/login";
-            }
+            this.clearAuthAndRedirect();
 
             return Promise.reject(refreshError);
           }
+        }
+
+        // If a retried request still fails with auth status, session is no longer valid.
+        if (isAuthErrorStatus && originalRequest?._retry) {
+          this.clearAuthAndRedirect();
         }
 
         const responseData = error.response?.data;
@@ -229,6 +253,37 @@ class ApiClient {
     });
 
     this.failedQueue = [];
+  }
+
+  private clearAuthAndRedirect() {
+    useAuthStore.getState().clearAuth();
+    if (typeof window !== "undefined" && window.location.pathname !== "/auth/login") {
+      window.location.assign("/auth/login");
+    }
+  }
+
+  private shouldAttemptRefresh(
+    error: AxiosError,
+    originalRequest: InternalAxiosRequestConfig & { _retry?: boolean },
+  ): boolean {
+    const statusCode = error.response?.status;
+    if (statusCode !== 401 && statusCode !== 403) {
+      return false;
+    }
+
+    const requestUrl = originalRequest.url || "";
+    const lowerUrl = requestUrl.toLowerCase();
+    if (ApiClient.NO_REFRESH_ENDPOINTS.some((endpoint) => lowerUrl.includes(endpoint))) {
+      return false;
+    }
+
+    if (statusCode === 401) {
+      return true;
+    }
+
+    // 403 can be authorization/business logic or auth-expired. Refresh only for auth-like responses.
+    const errorMessage = authErrorMessageFromResponse(error.response?.data);
+    return ApiClient.AUTH_403_HINTS.some((hint) => errorMessage.includes(hint));
   }
 
   getInstance(): AxiosInstance {
