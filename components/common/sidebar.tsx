@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useUiStore } from "@/lib/store/ui-store";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
+import { useNotificationStore } from "@/lib/store/notification-store";
 import { useTheme } from "@/components/common/theme-provider";
 import { AuthService } from "@/lib/services/auth-service";
 import { goeyToast as toast } from "goey-toast";
@@ -46,6 +47,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
+  badgeCount?: number;
 }
 
 const navItems: NavItem[] = [
@@ -106,7 +108,20 @@ export function AppSidebar() {
   const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
   const toggleSidebarCollapsed = useUiStore((state) => state.toggleSidebarCollapsed);
   const { user, logout, setLoggingOut, refreshToken } = useAuthStore();
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const hasUnread = unreadCount > 0;
+  const notificationBadge = unreadCount > 99 ? "99+" : String(unreadCount);
   const themeValue = theme === "system" ? resolvedTheme : theme;
+
+  const navigationItems: NavItem[] = [
+    ...navItems,
+    {
+      label: "Notifications",
+      href: "/notifications",
+      icon: <Bell size={20} />,
+      badgeCount: unreadCount,
+    },
+  ];
 
   const handleThemeChange = (value: string) => {
     if (value === "light" || value === "dark") {
@@ -192,8 +207,14 @@ export function AppSidebar() {
             Menu
           </p>
         )}
-        {navItems.map((item) => {
+        {navigationItems.map((item) => {
           const active = isActive(item.href);
+          const showBadge = typeof item.badgeCount === "number" && item.badgeCount > 0;
+          const badgeValue =
+            typeof item.badgeCount === "number" && item.badgeCount > 99
+              ? "99+"
+              : item.badgeCount;
+          const showActiveIndicator = active && !showBadge;
           return (
             <Link
               key={item.href}
@@ -214,7 +235,17 @@ export function AppSidebar() {
                 {item.icon}
               </span>
               {!collapsed && item.label}
-              {active && (
+              {showBadge && !collapsed && (
+                <span className="ml-auto inline-flex items-center justify-center rounded-full bg-rose-500/90 px-2 py-0.5 text-[10px] font-semibold text-white">
+                  {badgeValue}
+                </span>
+              )}
+              {showBadge && collapsed && (
+                <span className="absolute -top-1 -right-1 min-w-4 rounded-full bg-rose-500 px-1 text-[9px] font-semibold leading-4 text-white ring-2 ring-[#0f1225]">
+                  {badgeValue}
+                </span>
+              )}
+              {showActiveIndicator && (
                 <span className={`w-1.5 h-1.5 rounded-full bg-emerald-400 ${collapsed ? "absolute right-2" : "ml-auto"}`} />
               )}
               {collapsed && (
@@ -235,8 +266,11 @@ export function AppSidebar() {
               title="Account menu"
               className={`group flex w-full items-center rounded-xl bg-white/4 transition-all duration-300 hover:bg-white/6 ${collapsed ? "px-2 justify-center py-2.5" : "px-3 gap-3 py-2.5"}`}
             >
-              <div className={`bg-linear-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center shrink-0 ring-1 ring-emerald-500/20 ${collapsed ? "w-7 h-7" : "w-9 h-9"}`}>
+              <div className={`relative bg-linear-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center shrink-0 ring-1 ring-emerald-500/20 ${collapsed ? "w-7 h-7" : "w-9 h-9"}`}>
                 <User size={15} className="text-emerald-400" />
+                {hasUnread && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-[#0f1225]" />
+                )}
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
@@ -273,10 +307,14 @@ export function AppSidebar() {
                 Dark Mode
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
-            <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/notifications")}
-            >
+            <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/notifications")}>
               <Bell size={14} />
-              Notifications
+              <span className="flex-1">Notifications</span>
+              {hasUnread && (
+                <span className="ml-auto rounded-full bg-rose-500/90 px-2 py-0.5 text-[10px] font-semibold text-white">
+                  {notificationBadge}
+                </span>
+              )}
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/10" />
             <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/settings")}>

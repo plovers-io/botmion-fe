@@ -2,12 +2,15 @@
 
 import React, { ReactNode } from "react";
 import { withAuth } from "@/lib/hooks/with-auth";
+import { useNotificationFeed } from "@/lib/hooks/use-notification-feed";
 import { AppSidebar } from "@/components/common/sidebar";
 import { useUiStore } from "@/lib/store/ui-store";
 
 function ProtectedLayoutInner({ children }: { children: ReactNode }) {
   const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
   const sidebarOffset = sidebarCollapsed ? "5rem" : "16rem";
+
+  useNotificationFeed();
 
   return (
     <div className="flex min-h-screen">
