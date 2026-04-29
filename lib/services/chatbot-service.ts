@@ -8,7 +8,7 @@ import {
 } from "@/lib/types/chatbot";
 
 const BOTS_BASE =
-  process.env.NEXT_PUBLIC_BOTS_URL || "http://localhost:8000/bots";
+  (process.env.NEXT_PUBLIC_BOTS_URL || "http://localhost:8000/bots").replace(/\/+$/, "");
 
 export class ChatbotService {
   /**
@@ -91,15 +91,17 @@ export class ChatbotService {
    * Get the embed script URL for a chatbot widget
    */
   static getEmbedScriptUrl(chatbotUuid: string): string {
-    return `${BOTS_BASE}/v1/widget/${chatbotUuid}/embed.js`;
+    return `${BOTS_BASE}/v1/widget/${chatbotUuid}/embed.js/`;
   }
 
   /**
    * Get the iframe embed URL for a chatbot widget
    */
   static getIframeUrl(chatbotUuid: string, preview?: boolean): string {
-    const frontendUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const frontendUrl = (
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")
+    ).replace(/\/+$/, "");
     const base = `${frontendUrl}/chat/${chatbotUuid}`;
     return preview ? `${base}?preview=1` : base;
   }

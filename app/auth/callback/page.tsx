@@ -38,10 +38,23 @@ function CallbackContent() {
     const handleGoogleLogin = async () => {
       try {
         const redirectUri = `${window.location.origin}/auth/callback`;
-        const response = await AuthService.googleLogin({
+        let response = await AuthService.googleLogin({
           code,
           redirect_uri: redirectUri,
         });
+
+        const emailPrefix = response.user?.email?.split("@")[0] ?? "";
+        const firstName = response.user?.first_name?.trim() ?? "";
+        if (emailPrefix && !firstName) {
+          response = {
+            ...response,
+            user: {
+              ...response.user,
+              first_name: emailPrefix,
+              last_name: response.user?.last_name ?? "",
+            },
+          };
+        }
 
         login(response);
         toast.success("Welcome!", { description: "Google login successful" });

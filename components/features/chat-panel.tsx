@@ -11,7 +11,9 @@ import {
   User,
   Loader2,
   X,
+  Minus,
   Sparkles,
+  MessageCircle,
   RotateCcw,
   Mic,
   Square,
@@ -23,6 +25,7 @@ interface ChatPanelProps {
   chatbot: Chatbot | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  allowLauncherDismiss?: boolean;
 }
 
 interface ChatBubble {
@@ -36,7 +39,12 @@ interface ChatBubble {
   status?: string;
 }
 
-export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
+export function ChatPanel({
+  chatbot,
+  open,
+  onOpenChange,
+  allowLauncherDismiss = false,
+}: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatBubble[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -47,6 +55,7 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
   const [pendingVoiceBlob, setPendingVoiceBlob] = useState<Blob | null>(null);
   const [pendingVoiceSeconds, setPendingVoiceSeconds] = useState<number>(0);
   const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -67,12 +76,12 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Focus input when opened
+  // Focus input when widget expands
   useEffect(() => {
-    if (open) {
+    if (isExpanded) {
       setTimeout(() => inputRef.current?.focus(), 300);
     }
-  }, [open]);
+  }, [isExpanded]);
 
   // Reset when chatbot changes; cancel any outstanding polls
   useEffect(() => {
@@ -90,6 +99,15 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
       setPendingImageFile(null);
     }
   }, [chatbot?.id]);
+
+  useEffect(() => {
+    if (!open) {
+      setIsExpanded(false);
+      return;
+    }
+    // Open launcher first when user selects a chatbot.
+    setIsExpanded(false);
+  }, [open, chatbot?.id]);
 
   useEffect(() => {
     return () => {
@@ -571,8 +589,44 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
 
   if (!chatbot || !open) return null;
 
+  const handleLauncherDismiss = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    setIsExpanded(false);
+    onOpenChange(false);
+  };
+
   return (
-    <div className="fixed right-4 top-4 z-50 w-[min(440px,calc(100vw-2rem))] h-[calc(100vh-2rem)] rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-2xl border border-gray-200/70 dark:border-gray-700/60 flex flex-col">
+    <div className="fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2">
+      {!isExpanded && (
+        <div className="relative group">
+          {allowLauncherDismiss && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon-sm"
+              onClick={handleLauncherDismiss}
+              title="Close widget"
+              aria-label="Close chat widget"
+              className="absolute -top-2 -right-2 z-20 h-7 w-7 rounded-full border border-gray-200/80 bg-white text-gray-500 shadow-lg transition-all duration-200 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:border-red-200 dark:border-gray-700/80 dark:bg-gray-900 dark:text-gray-300"
+            >
+              <X size={13} />
+            </Button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setIsExpanded(true)}
+            aria-label="Open chat widget"
+            className="relative h-15 w-15 rounded-full bg-linear-to-br from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-2xl shadow-emerald-500/30 transition-all duration-300 hover:scale-105 hover:shadow-emerald-500/45 cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+          >
+            <MessageCircle size={24} className="mx-auto" />
+            <span className="pointer-events-none absolute -top-1 -right-1 h-4.5 w-4.5 rounded-full border-2 border-white bg-emerald-300 dark:border-gray-900" />
+          </button>
+        </div>
+      )}
+
+      {isExpanded && (
+        <div className="w-[min(440px,calc(100vw-2rem))] h-[min(680px,calc(100dvh-2rem))] rounded-2xl overflow-hidden bg-white dark:bg-gray-900 shadow-2xl border border-gray-200/70 dark:border-gray-700/60 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-700/50 bg-white dark:bg-gray-900">
           <div className="flex items-center gap-3">
@@ -602,10 +656,11 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
             <Button
               variant="ghost"
               size="icon-sm"
-              onClick={() => onOpenChange(false)}
+              onClick={() => setIsExpanded(false)}
+              title="Minimize"
               className="text-gray-400 hover:text-gray-600 cursor-pointer"
             >
-              <X size={16} />
+              <Minus size={16} />
             </Button>
           </div>
         </div>
@@ -866,5 +921,7 @@ export function ChatPanel({ chatbot, open, onOpenChange }: ChatPanelProps) {
           </p>
         </div>
       </div>
+      )}
+    </div>
   );
 }

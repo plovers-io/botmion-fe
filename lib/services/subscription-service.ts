@@ -25,6 +25,7 @@ import {
   RefundPaymentResponse,
   RenewalStatusResponse,
   RenewSubscriptionRequest,
+  PlanCatalogResponse,
 } from "@/lib/types/subscription";
 
 const SUBSCRIPTION_BASE =
@@ -64,8 +65,8 @@ export class SubscriptionService {
    * List all available plans
    * GET /subscription/v1/plans/
    */
-  static async getPlans(): Promise<Plan[]> {
-    const response = await apiClient.get<Plan[]>(buildUrl("/plans/"));
+  static async getPlans(): Promise<PlanCatalogResponse> {
+    const response = await apiClient.get<PlanCatalogResponse>(buildUrl("/plans/"));
     return response.data;
   }
 
@@ -237,6 +238,22 @@ export class SubscriptionService {
     const response = await apiClient.post<CreatePaymentResponse>(
       buildUrl("/payments/create/"),
       data
+    );
+    return response.data;
+  }
+
+  /**
+   * Dev-only: mark a payment as successful.
+   * GET /subscription/v1/payments/sslcommerz/success/?demo=1&transaction_id=...
+   */
+  static async markPaymentSuccessDemo(
+    transactionId: string
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await apiClient.get<{ success: boolean; message?: string }>(
+      buildUrl("/payments/sslcommerz/success/", {
+        demo: 1,
+        transaction_id: transactionId,
+      })
     );
     return response.data;
   }

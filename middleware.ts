@@ -20,9 +20,16 @@ export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   // Security headers
-  // Allow /chat/* routes to be embedded in iframes (for live preview & widget embed)
+  // Allow /chat/* routes to be embedded in iframes (for live preview & widget embed).
+  // X-Frame-Options=SAMEORIGIN blocks third-party domains (e.g. customer sites, W3Schools sandbox),
+  // so we omit it here and use frame-ancestors policy instead.
   if (pathname.startsWith("/chat/")) {
-    response.headers.set("X-Frame-Options", "SAMEORIGIN");
+    response.headers.delete("X-Frame-Options");
+    const embedFrameAncestors = process.env.EMBED_FRAME_ANCESTORS || "*";
+    response.headers.set(
+      "Content-Security-Policy",
+      `frame-ancestors ${embedFrameAncestors};`
+    );
   } else {
     response.headers.set("X-Frame-Options", "DENY");
   }

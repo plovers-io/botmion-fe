@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
+const OTP_TTL_SECONDS = 120;
+
 function OTPVerificationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,6 +21,7 @@ function OTPVerificationContent() {
   const [resending, setResending] = useState(false);
   const [email, setEmail] = useState("");
   const [purpose, setPurpose] = useState<"register" | "forgot_password">("register");
+  const [timeLeft, setTimeLeft] = useState(OTP_TTL_SECONDS);
 
   useEffect(() => {
     const emailParam = searchParams.get("email");
@@ -29,6 +32,24 @@ function OTPVerificationContent() {
       setPurpose(purposeParam);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+
+    const timerId = window.setInterval(() => {
+      setTimeLeft((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [timeLeft]);
+
+  const formatTime = (value: number) => {
+    const minutes = Math.floor(value / 60);
+    const seconds = value % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  };
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return; // Only allow digits
@@ -78,6 +99,11 @@ function OTPVerificationContent() {
       return;
     }
 
+    if (timeLeft <= 0) {
+      toast.error("OTP Expired", { description: "Please request a new code" });
+      return;
+    }
+
     if (!email) {
       toast.error("Error", { description: "Email not found. Please try again." });
       return;
@@ -102,7 +128,11 @@ function OTPVerificationContent() {
           }, 1500);
         } else if (purpose === "forgot_password" && response.reset_token) {
           // Redirect to reset password page with token
-          router.push(`/auth/reset-password?token=${encodeURIComponent(response.reset_token)}&email=${encodeURIComponent(email)}`);
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem("reset_token", response.reset_token);
+            window.sessionStorage.setItem("reset_email", email);
+          }
+          router.push("/auth/reset-password");
         }
       }
     } catch (error) {
@@ -129,6 +159,7 @@ function OTPVerificationContent() {
       
       toast.success("OTP Resent", { description: "A new code has been sent to your email" });
       setOtp(["", "", "", "", "", ""]); // Clear OTP inputs
+      setTimeLeft(OTP_TTL_SECONDS);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to resend OTP";
       toast.error("Resend Failed", { description: errorMessage });
@@ -153,6 +184,9 @@ function OTPVerificationContent() {
           <p className="text-emerald-600 dark:text-emerald-400 font-semibold mt-1">
             {email}
           </p>
+          <p className="mt-3 text-xs text-gray-400">
+            Code expires in <span className="font-semibold text-gray-600">{formatTime(timeLeft)}</span>
+          </p>
         </div>
 
         <form onSubmit={handleVerify} className="space-y-6">
@@ -174,16 +208,21 @@ function OTPVerificationContent() {
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={handlePaste}
                   className="w-12 h-14 text-center text-2xl font-bold border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                  disabled={loading}
+                  disabled={loading || timeLeft <= 0}
                 />
               ))}
             </div>
+            {timeLeft <= 0 && (
+              <p className="mt-3 text-xs text-rose-600">
+                This code has expired. Please request a new one.
+              </p>
+            )}
           </div>
 
           {/* Verify Button */}
           <Button
             type="submit"
-            disabled={loading || otp.join("").length !== 6}
+            disabled={loading || timeLeft <= 0 || otp.join("").length !== 6}
             className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
@@ -207,10 +246,14 @@ function OTPVerificationContent() {
             <button
               type="button"
               onClick={handleResendOTP}
-              disabled={resending || loading}
+              disabled={resending || loading || timeLeft > 0}
               className="text-emerald-600 hover:text-emerald-700 font-semibold text-sm disabled:opacity-50"
             >
-              {resending ? "Sending..." : "Resend Code"}
+              {resending
+                ? "Sending..."
+                : timeLeft > 0
+                ? `Resend available in ${formatTime(timeLeft)}`
+                : "Resend Code"}
             </button>
           </div>
         </form>

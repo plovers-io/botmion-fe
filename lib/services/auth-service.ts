@@ -213,18 +213,46 @@ export class AuthService {
    */
   private static handleError(error: unknown): Error {
     if (axios.isAxiosError(error)) {
-      const axiosError = error as AxiosError<{
-        message?: string;
-        detail?: string;
-        error?: string;
-      }>;
-      
-      const errorMessage =
-        axiosError.response?.data?.message ||
-        axiosError.response?.data?.detail ||
-        axiosError.response?.data?.error ||
-        axiosError.message ||
-        "An error occurred";
+      const axiosError = error as AxiosError<Record<string, unknown>>;
+      const responseData = axiosError.response?.data;
+
+      const firstString = (value: unknown): string | null => {
+        if (typeof value === "string" && value.trim()) return value;
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            if (typeof item === "string" && item.trim()) return item;
+          }
+        }
+        return null;
+      };
+
+      const extractMessage = (data: unknown, fallback: string): string => {
+        if (!data || typeof data !== "object" || Array.isArray(data)) {
+          return fallback;
+        }
+
+        const record = data as Record<string, unknown>;
+
+        const messageFromKeys =
+          firstString(record.non_field_errors) ||
+          firstString(record.message) ||
+          firstString(record.detail) ||
+          firstString(record.error);
+
+        if (messageFromKeys) return messageFromKeys;
+
+        for (const value of Object.values(record)) {
+          const message = firstString(value);
+          if (message) return message;
+        }
+
+        return fallback;
+      };
+
+      const errorMessage = extractMessage(
+        responseData,
+        axiosError.message || "An error occurred"
+      );
 
       return new Error(errorMessage);
     }
