@@ -14,6 +14,7 @@ import {
   RefreshCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -43,7 +44,7 @@ function formatDateTime(value?: string | null): string {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -234,6 +235,9 @@ export default function NotificationsPage() {
             const priorityClass = PRIORITY_STYLES[notification.priority];
             const statusLabel = STATUS_LABELS[notification.status];
 
+            const viewId = notification.id;
+            const canView = Number.isFinite(Number(viewId));
+
             return (
               <Card
                 key={notification.id}
@@ -284,11 +288,21 @@ export default function NotificationsPage() {
                           </a>
                         </Button>
                       )}
+                      {canView && (
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 border border-emerald-200/70 dark:border-emerald-500/30"
+                        >
+                          <Link href={`/notifications/${viewId}`}>View</Link>
+                        </Button>
+                      )}
                       {notification.status === "unread" && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-8"
+                          className="h-8 border border-emerald-200/70 dark:border-emerald-500/30"
                           onClick={() => handleMarkRead(notification)}
                         >
                           <Check size={14} />

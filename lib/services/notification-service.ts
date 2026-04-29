@@ -12,7 +12,10 @@ const NOTIFICATIONS_BASE =
   "http://localhost:8000/notifications";
 const NOTIFICATIONS_V1 = `${NOTIFICATIONS_BASE.replace(/\/$/, "")}/v1`;
 
-function buildUrl(path: string, query?: Record<string, string | number | undefined>): string {
+function buildUrl(
+  path: string,
+  query?: NotificationListParams | Record<string, string | number | undefined>
+): string {
   if (!query) {
     return `${NOTIFICATIONS_V1}${path}`;
   }
@@ -44,6 +47,39 @@ export class NotificationService {
     return response.data;
   }
 
+  static async getNotification(id: number | string): Promise<NotificationItem> {
+    const response = await apiClient.get<NotificationItem>(
+      buildUrl(`/notifications/${id}/`)
+    );
+    return response.data;
+  }
+
+  static async deleteNotification(id: number | string): Promise<void> {
+    await apiClient.delete(buildUrl(`/notifications/${id}/`));
+  }
+
+  static async getPreferences(): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>(
+      buildUrl(`/notifications/preferences/`)
+    );
+    return response.data;
+  }
+
+  static async updatePreferences(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const response = await apiClient.put<Record<string, unknown>>(
+      buildUrl(`/notifications/preferences/`),
+      payload
+    );
+    return response.data;
+  }
+
+  static async listTemplates(): Promise<any[]> {
+    const response = await apiClient.get<any[]>(
+      buildUrl(`/notifications/templates/`)
+    );
+    return response.data;
+  }
+
   static async markAllRead(): Promise<{ count: number }> {
     const response = await apiClient.post<{ count: number }>(
       buildUrl("/notifications/mark-all-read/")
@@ -52,7 +88,7 @@ export class NotificationService {
   }
 
   static async updateStatus(
-    id: number,
+    id: number | string,
     status: NotificationStatus
   ): Promise<NotificationItem> {
     const response = await apiClient.patch<NotificationItem>(

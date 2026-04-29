@@ -243,6 +243,22 @@ export class SubscriptionService {
   }
 
   /**
+   * Dev-only: mark a payment as successful.
+   * GET /subscription/v1/payments/sslcommerz/success/?demo=1&transaction_id=...
+   */
+  static async markPaymentSuccessDemo(
+    transactionId: string
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await apiClient.get<{ success: boolean; message?: string }>(
+      buildUrl("/payments/sslcommerz/success/", {
+        demo: 1,
+        transaction_id: transactionId,
+      })
+    );
+    return response.data;
+  }
+
+  /**
    * Fetch a payment transaction status.
    * GET /subscription/v1/payments/{transaction_id}/status/
    */

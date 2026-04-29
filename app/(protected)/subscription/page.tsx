@@ -94,6 +94,19 @@ function formatDate(date?: string | null): string {
   return parsed.toLocaleDateString();
 }
 
+function addBillingPeriod(startDate: string, cycle: BillingCycle): string | null {
+  if (!startDate) return null;
+  const parsed = new Date(startDate);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const next = new Date(parsed);
+  if (cycle === "monthly") {
+    next.setMonth(next.getMonth() + 1);
+  } else {
+    next.setFullYear(next.getFullYear() + 1);
+  }
+  return next.toISOString();
+}
+
 function formatMoney(
   value: string | number | null | undefined,
   currency = "USD"
@@ -215,6 +228,7 @@ export default function SubscriptionPage() {
   const [lastTransactionId, setLastTransactionId] = useState<string | null>(null);
   const [checkingStatusFor, setCheckingStatusFor] = useState<string | null>(null);
   const [refundingFor, setRefundingFor] = useState<string | null>(null);
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   const highestSavings = useMemo(() => {
     return plans.reduce((max, plan) => {
@@ -250,6 +264,19 @@ export default function SubscriptionPage() {
     ? `${planCatalog.billing_cycle_notes[billingCycle]} · ${planCatalog.expiry_note}`
     : "";
 
+  const isDev = process.env.NODE_ENV !== "production";
+
+  const latestPendingTransactionId = useMemo(() => {
+    const pendingTransaction = paymentHistory.find(
+      (transaction) => transaction.status === "pending"
+    );
+    return pendingTransaction?.transaction_id ?? null;
+  }, [paymentHistory]);
+
+  const activeDemoTransactionId = lastTransactionId ?? latestPendingTransactionId;
+  const demoTransactionId = activeDemoTransactionId ?? "";
+  const hasDemoTransactionId = demoTransactionId.length > 0;
+
   const comparisonQuotaCodes = useMemo(() => {
     const codes = new Set<string>();
     orderedPlans.forEach((plan) => {
@@ -265,6 +292,67 @@ export default function SubscriptionPage() {
     });
     return Array.from(codes);
   }, [orderedPlans]);
+
+  const usagePeriod = useMemo(() => {
+    if (!currentUsage) return null;
+    const start = currentSubscription?.start_date || currentUsage.period.start;
+    const derivedEnd =
+      currentSubscription?.end_date ||
+      (currentSubscription?.start_date
+        ? addBillingPeriod(
+            currentSubscription.start_date,
+            currentSubscription.billing_cycle
+          )
+        : null);
+    const end = derivedEnd || currentUsage.period.end;
+    return { start, end, source: currentSubscription?.start_date ? "subscription" : "usage" };
+  }, [currentUsage, currentSubscription]);
+
+  const effectiveSubscriptionQuotas = useMemo(() => {
+    if (!subscriptionQuotas) return null;
+    if (currentSubscription?.status !== "CANCELED") return subscriptionQuotas;
+
+    const endDate = currentSubscription.end_date
+      ? new Date(currentSubscription.end_date)
+      : null;
+    const hasEnded =
+      endDate !== null &&
+      !Number.isNaN(endDate.getTime()) &&
+      endDate <= new Date();
+    if (!hasEnded) return subscriptionQuotas;
+
+    const freePlan = plans.find((plan) => plan.slug === "free");
+    if (!freePlan) return subscriptionQuotas;
+
+    const quotaMap: SubscriptionQuotasResponse["quotas"] = {};
+
+    freePlan.quotas.forEach((quota) => {
+      const usageEntry = currentUsage?.usage?.[quota.feature_code];
+      const used = typeof usageEntry?.used === "number" ? usageEntry.used : 0;
+      const limitValue = quota.limit;
+      const isUnlimited = limitValue <= 0;
+
+      quotaMap[quota.feature_code] = {
+        metric: quota.feature_code,
+        limit: isUnlimited ? "unlimited" : limitValue,
+        used,
+        remaining: isUnlimited ? "unlimited" : Math.max(limitValue - used, 0),
+        percentage: isUnlimited
+          ? 0
+          : Math.min((used / limitValue) * 100, 100),
+      };
+    });
+
+    return {
+      ...subscriptionQuotas,
+      plan: {
+        id: freePlan.uuid || String(freePlan.id),
+        name: freePlan.name,
+        slug: freePlan.slug,
+      },
+      quotas: quotaMap,
+    };
+  }, [subscriptionQuotas, currentSubscription?.status, plans, currentUsage]);
 
   const loadBillingData = useCallback(async (showRefreshing = true) => {
     if (showRefreshing) {
@@ -325,6 +413,15 @@ export default function SubscriptionPage() {
       }
 
       await loadBillingData(false);
+
+      if (typeof window !== "undefined") {
+        const storedTransactionId = window.localStorage.getItem(
+          "botmion_last_demo_transaction_id"
+        );
+        if (storedTransactionId) {
+          setLastTransactionId(storedTransactionId);
+        }
+      }
     } catch (error: unknown) {
       toast.error("Failed to load subscription data", {
         description: getErrorMessage(error, "Please try again."),
@@ -377,6 +474,12 @@ export default function SubscriptionPage() {
       });
 
       setLastTransactionId(result.transaction_id);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          "botmion_last_demo_transaction_id",
+          result.transaction_id
+        );
+      }
       toast.success("Payment session ready", {
         description: "Redirecting to secure checkout.",
       });
@@ -404,6 +507,12 @@ export default function SubscriptionPage() {
       );
 
       setLastTransactionId(result.transaction_id);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          "botmion_last_demo_transaction_id",
+          result.transaction_id
+        );
+      }
       toast.success("Renewal session created", {
         description: "Continue renewal in checkout.",
       });
@@ -471,6 +580,27 @@ export default function SubscriptionPage() {
       });
     } finally {
       setRefundingFor(null);
+    }
+  };
+
+  const handleMarkPaymentSuccess = async (transactionId: string) => {
+    if (!isDev) return;
+    setMarkingPaid(true);
+    try {
+      await SubscriptionService.markPaymentSuccessDemo(transactionId);
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("botmion_last_demo_transaction_id");
+      }
+      toast.success("Payment completed", {
+        description: "Demo payment marked as successful.",
+      });
+      await refreshAllData();
+    } catch (error: unknown) {
+      toast.error("Demo completion failed", {
+        description: getErrorMessage(error, "Could not complete the payment."),
+      });
+    } finally {
+      setMarkingPaid(false);
     }
   };
 
@@ -554,7 +684,7 @@ export default function SubscriptionPage() {
       setCurrentSubscription(subscription);
       setShowCancelModal(false);
       toast.success("Subscription canceled", {
-        description: "Your subscription has been canceled.",
+        description: "You have been moved to the Free plan.",
       });
       await loadBillingData(false);
     } catch (error: unknown) {
@@ -637,7 +767,7 @@ export default function SubscriptionPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 lg:px-8 lg:py-8">
-      <div className="relative overflow-hidden rounded-3xl border border-emerald-200/40 dark:border-emerald-800/40 page-pattern bg-linear-to-br from-white via-emerald-50/40 to-cyan-50/40 dark:from-gray-950 dark:via-emerald-950/10 dark:to-cyan-950/10">
+      <div className="relative overflow-hidden rounded-3xl border border-emerald-200/60 shadow-[0_30px_70px_rgba(15,23,42,0.08)] dark:border-emerald-800/40 dark:shadow-[0_30px_70px_rgba(3,7,18,0.6)] page-pattern bg-linear-to-br from-white via-emerald-100/60 to-cyan-100/60 dark:from-gray-950 dark:via-emerald-950/10 dark:to-cyan-950/10">
         <div className="pointer-events-none absolute inset-0 opacity-40">
           <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-emerald-300/30 blur-3xl dark:bg-emerald-500/20" />
           <div className="absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-cyan-300/30 blur-3xl dark:bg-cyan-500/20" />
@@ -799,7 +929,8 @@ export default function SubscriptionPage() {
                     Overage {currentSubscription.allow_overage ? "On" : "Off"}
                   </Button>
 
-                  {currentSubscription.status !== "CANCELED" && (
+                  {currentSubscription.status !== "CANCELED" &&
+                    currentSubscription.plan.slug !== "free" && (
                     <Button
                       variant="outline"
                       className="text-rose-600 border-rose-300 hover:bg-rose-50 dark:text-rose-300 dark:border-rose-800 dark:hover:bg-rose-950/40"
@@ -1119,28 +1250,44 @@ export default function SubscriptionPage() {
                   </div>
                 )}
 
-                {lastTransactionId && (
+                {(isDev || hasDemoTransactionId) && (
                   <div className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50/70 p-3 dark:border-cyan-800 dark:bg-cyan-900/20">
                     <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700 dark:text-cyan-300">
                       Last Payment Transaction
                     </p>
                     <p className="mt-1 truncate text-sm text-gray-700 dark:text-gray-300">
-                      {lastTransactionId}
+                      {hasDemoTransactionId ? demoTransactionId : "No payment session yet"}
                     </p>
                     <Button
                       variant="outline"
                       size="sm"
                       className="mt-2 w-full"
-                      disabled={checkingStatusFor === lastTransactionId}
-                      onClick={() => void handleCheckPaymentStatus(lastTransactionId)}
+                      disabled={!hasDemoTransactionId || checkingStatusFor === demoTransactionId}
+                      onClick={() => void handleCheckPaymentStatus(demoTransactionId)}
                     >
-                      {checkingStatusFor === lastTransactionId ? (
+                      {checkingStatusFor === demoTransactionId ? (
                         <Loader2 className="animate-spin" size={14} />
                       ) : (
                         <Clock3 size={14} />
                       )}
                       Check Status
                     </Button>
+                    {isDev && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full"
+                        disabled={markingPaid || !hasDemoTransactionId}
+                        onClick={() => void handleMarkPaymentSuccess(demoTransactionId)}
+                      >
+                        {markingPaid ? (
+                          <Loader2 className="animate-spin" size={14} />
+                        ) : (
+                          <Check size={14} />
+                        )}
+                        Mark as Paid (Dev)
+                      </Button>
+                    )}
                   </div>
                 )}
               </aside>
@@ -1275,9 +1422,13 @@ export default function SubscriptionPage() {
                 Integrates: subscription quota endpoint.
               </p>
 
-              {subscriptionQuotas ? (
+              {effectiveSubscriptionQuotas ? (
                 <div className="mt-4 space-y-3">
-                  {Object.entries(subscriptionQuotas.quotas).map(([code, value]) => {
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Plan: {toTitleCase(effectiveSubscriptionQuotas.plan.name)}
+                    {currentSubscription?.status === "CANCELED" ? " (canceled)" : ""}
+                  </p>
+                  {Object.entries(effectiveSubscriptionQuotas.quotas).map(([code, value]) => {
                     const usedLabel = typeof value.used === "number" ? value.used : 0;
                     const limitLabel =
                       typeof value.limit === "number" ? value.limit : "Unlimited";
@@ -1325,10 +1476,12 @@ export default function SubscriptionPage() {
 
               {currentUsage ? (
                 <>
-                  <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                    Period: {formatDate(currentUsage.period.start)} -{" "}
-                    {formatDate(currentUsage.period.end)}
-                  </p>
+                  {usagePeriod && (
+                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      Period: {formatDate(usagePeriod.start)} - {formatDate(usagePeriod.end)}
+                      {usagePeriod.source === "subscription" ? " · Based on subscription" : ""}
+                    </p>
+                  )}
 
                   <div className="mt-3 space-y-3">
                     {Object.entries(currentUsage.usage).map(([metricCode, value]) => (
@@ -1590,7 +1743,7 @@ export default function SubscriptionPage() {
         onClose={() => setShowCancelModal(false)}
         onConfirm={handleCancelConfirm}
         title="Cancel Subscription"
-        description="Are you sure you want to cancel your subscription? You will lose access to all premium features at the end of your current billing cycle."
+        description="Are you sure you want to cancel your subscription? You will move to the Free plan immediately."
         confirmText="Yes, Cancel"
         cancelText="Keep Subscription"
         confirmVariant="danger"
