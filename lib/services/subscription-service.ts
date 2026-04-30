@@ -33,7 +33,7 @@ const SUBSCRIPTION_BASE =
   "http://localhost:8000/subscription";
 const SUBSCRIPTION_V1 = `${SUBSCRIPTION_BASE.replace(/\/$/, "")}/v1`;
 
-function buildUrl(path: string, query?: Record<string, unknown>): string {
+function buildUrl(path: string, query?: Record<string, unknown> | object): string {
   if (!query) {
     return `${SUBSCRIPTION_V1}${path}`;
   }

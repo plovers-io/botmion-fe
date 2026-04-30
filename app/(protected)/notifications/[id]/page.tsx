@@ -2,9 +2,11 @@ import NotificationDetailClient from "@/components/notifications/NotificationDet
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ notif_id?: string; notifId?: string }>;
 }
 
-export default async function NotificationDetailPage({ params }: Props) {
+export default async function NotificationDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  return <NotificationDetailClient id={id} />;
+  const query = searchParams ? await searchParams : undefined;
+  return <NotificationDetailClient id={id} notifId={query?.notif_id ?? query?.notifId} />;
 }

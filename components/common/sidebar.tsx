@@ -6,8 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useUiStore } from "@/lib/store/ui-store";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
 import { useNotificationStore } from "@/lib/store/notification-store";
+import { useWorkspaceStore } from "@/lib/store/workspace-store";
 import { useTheme } from "@/components/common/theme-provider";
 import { AuthService } from "@/lib/services/auth-service";
+import { WorkspaceMemberService } from "@/lib/services/workspace-member-service";
 import { goeyToast as toast } from "goey-toast";
 import {
   LayoutDashboard,
@@ -29,6 +31,13 @@ import {
   LifeBuoy,
   PanelLeftClose,
   PanelLeftOpen,
+  Users,
+  Building2,
+  ChevronDown,
+  Eye,
+  Pencil,
+  Shield,
+  Crown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -42,6 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 interface NavItem {
   label: string;
@@ -60,6 +70,11 @@ const navItems: NavItem[] = [
     label: "Workspace",
     href: "/workspace",
     icon: <Briefcase size={20} />,
+  },
+  {
+    label: "Members",
+    href: "/members",
+    icon: <Users size={20} />,
   },
   {
     label: "Chatbots",
@@ -98,6 +113,13 @@ const navItems: NavItem[] = [
   },
 ];
 
+const roleConfig: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  owner: { label: "Owner", icon: <Crown size={10} />, color: "bg-amber-100 text-amber-700" },
+  admin: { label: "Admin", icon: <Shield size={10} />, color: "bg-purple-100 text-purple-700" },
+  editor: { label: "Editor", icon: <Pencil size={10} />, color: "bg-blue-100 text-blue-700" },
+  viewer: { label: "Viewer", icon: <Eye size={10} />, color: "bg-gray-100 text-gray-600" },
+};
+
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -117,6 +139,69 @@ export function AppSidebar() {
     `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim() ||
     emailPrefix ||
     "Account";
+
+  // Workspace state
+  const workspaces = useWorkspaceStore((state) => state.workspaces);
+  const currentWorkspaceId = useWorkspaceStore((state) => state.currentWorkspaceId);
+  const currentRole = useWorkspaceStore((state) => state.currentRole);
+  const setWorkspaces = useWorkspaceStore((state) => state.setWorkspaces);
+  const setCurrentWorkspace = useWorkspaceStore((state) => state.setCurrentWorkspace);
+  const setCurrentRole = useWorkspaceStore((state) => state.setCurrentRole);
+  const [workspaceLoading, setWorkspaceLoading] = React.useState(false);
+
+  // Fetch workspaces on mount
+  React.useEffect(() => {
+    const loadWorkspaces = async () => {
+      setWorkspaceLoading(true);
+      try {
+        const data = await WorkspaceMemberService.getWorkspaces();
+        setWorkspaces(data);
+        // Determine role for current workspace
+        const currentWs = data.find((w) => w.id === currentWorkspaceId);
+        if (currentWs) {
+          if (String(currentWs.owner.id) === user?.id) {
+            setCurrentRole("owner");
+          } else {
+            try {
+              const membersData = await WorkspaceMemberService.getMembers(currentWs.id);
+              setCurrentRole(membersData.current_user_role as any);
+            } catch {
+              setCurrentRole("viewer");
+            }
+          }
+        }
+      } catch {
+        // silent fail
+      } finally {
+        setWorkspaceLoading(false);
+      }
+    };
+    if (user) {
+      loadWorkspaces();
+    }
+  }, [user, setWorkspaces, currentWorkspaceId, setCurrentRole]);
+
+  const handleWorkspaceSwitch = async (workspaceId: number) => {
+    setCurrentWorkspace(workspaceId);
+    const ws = workspaces.find((w) => w.id === workspaceId);
+    if (ws) {
+      if (String(ws.owner.id) === user?.id) {
+        setCurrentRole("owner");
+      } else {
+        try {
+          const membersData = await WorkspaceMemberService.getMembers(ws.id);
+          setCurrentRole(membersData.current_user_role as any);
+        } catch {
+          setCurrentRole("viewer");
+        }
+      }
+    }
+    // Reload page to refresh workspace-scoped data
+    router.refresh();
+  };
+
+  const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId);
+  const roleInfo = currentRole ? roleConfig[currentRole] : null;
 
   const navigationItems: NavItem[] = [...navItems];
 
@@ -197,6 +282,75 @@ export function AppSidebar() {
           )}
         </div>
       </div>
+
+      {/* Workspace Switcher */}
+      {!collapsed && workspaces.length > 0 && (
+        <div className="px-3 py-3 border-b border-gray-200/70 dark:border-white/6">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="w-full flex items-center gap-2 rounded-xl border border-gray-200/70 dark:border-white/10 bg-gray-50/80 dark:bg-white/4 px-3 py-2.5 text-left hover:bg-gray-100 dark:hover:bg-white/6 transition-all cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center shrink-0">
+                  <Building2 size={15} className="text-emerald-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+                    {currentWorkspace?.name || "Select Workspace"}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    {roleInfo && (
+                      <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${roleInfo.color}`}>
+                        <span className="mr-0.5">{roleInfo.icon}</span>
+                        {roleInfo.label}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <ChevronDown size={14} className="text-gray-400 shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="bottom"
+              align="start"
+              sideOffset={4}
+              className="w-64 border-gray-200 bg-white text-gray-700 dark:border-white/10 dark:bg-[#111526] dark:text-gray-100"
+            >
+              <DropdownMenuLabel className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Workspaces
+              </DropdownMenuLabel>
+              {workspaces.map((ws) => {
+                const isOwner = String(ws.owner.id) === user?.id;
+                const wsRole = isOwner ? "owner" : undefined;
+                const wsRoleInfo = wsRole ? roleConfig[wsRole] : null;
+                return (
+                  <DropdownMenuItem
+                    key={ws.id}
+                    className="cursor-pointer flex items-center gap-2"
+                    onClick={() => handleWorkspaceSwitch(ws.id)}
+                  >
+                    <div className="w-7 h-7 rounded-md bg-gradient-to-br from-emerald-500/15 to-teal-500/15 flex items-center justify-center shrink-0">
+                      <Building2 size={13} className="text-emerald-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{ws.name}</p>
+                    </div>
+                    {wsRoleInfo && (
+                      <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${wsRoleInfo.color}`}>
+                        {wsRoleInfo.label}
+                      </Badge>
+                    )}
+                    {currentWorkspaceId === ws.id && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
       <nav className={`flex-1 py-5 space-y-0.5 overflow-y-auto overflow-x-visible no-scrollbar transition-all duration-300 ${collapsed ? "px-2" : "px-3"}`}>
         {!collapsed && (

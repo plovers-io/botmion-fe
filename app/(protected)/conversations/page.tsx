@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ConversationService } from "@/lib/services/conversation-service";
 import { ChatbotService } from "@/lib/services/chatbot-service";
+import { useWorkspaceStore } from "@/lib/store/workspace-store";
+import { useWorkspaceRole } from "@/lib/hooks/use-workspace-role";
 import { Conversation, ConversationListItem, PlatformType } from "@/lib/types/conversation";
 import { Chatbot } from "@/lib/types/chatbot";
 import { goeyToast as toast } from "goey-toast";
@@ -49,6 +51,10 @@ export default function ConversationsPage() {
   const [page, setPage] = useState(1);
   const [platformFilter, setPlatformFilter] = useState<PlatformType | "all">("all");
 
+  // Workspace & role
+  const currentWorkspaceId = useWorkspaceStore((state) => state.currentWorkspaceId);
+  const { canDelete } = useWorkspaceRole();
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -68,7 +74,7 @@ export default function ConversationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [platformFilter]);
+  }, [platformFilter, currentWorkspaceId]);
 
   useEffect(() => {
     loadData();
@@ -226,17 +232,19 @@ export default function ConversationsPage() {
                       <Badge variant="secondary" className={`text-[10px] ${stat.color}`}>
                         {stat.label}
                       </Badge>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(conv);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(conv);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500"
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {lastMsg && (

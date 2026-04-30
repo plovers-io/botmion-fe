@@ -47,6 +47,14 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
+// DRF PageNumberPagination format (used by backend StandardResultsSetPagination)
+export interface DRFPaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 // Request error handling
 export interface ApiError {
   status: number;

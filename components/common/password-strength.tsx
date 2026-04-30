@@ -39,7 +39,7 @@ export function PasswordStrength({ password, className }: PasswordStrengthProps)
       </div>
       <div className="mt-2 h-2 w-full rounded-full bg-emerald-100 dark:bg-emerald-500/20">
         <div
-          className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all"
+          className="h-2 rounded-full bg-linear-to-r from-emerald-500 to-teal-500 transition-all"
           style={{ width: `${percent}%` }}
         />
       </div>

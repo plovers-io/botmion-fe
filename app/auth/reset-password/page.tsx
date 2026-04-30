@@ -37,6 +37,7 @@ function ResetPasswordContent() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPasswordStrength, setShowPasswordStrength] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resetToken, setResetToken] = useState("");
   const [email, setEmail] = useState("");
@@ -148,10 +149,10 @@ function ResetPasswordContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4">
       <Card className="w-full max-w-md p-8 shadow-2xl border-gray-100/50 dark:border-gray-700/50">
         <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/25">
+          <div className="mx-auto w-16 h-16 bg-linear-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/25">
             <Lock className="text-white" size={28} />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
@@ -182,6 +183,8 @@ function ResetPasswordContent() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setShowPasswordStrength(true)}
+                onBlur={() => setShowPasswordStrength(false)}
                 className={`pl-10 pr-12 py-5 rounded-xl ${
                   errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""
                 }`}
@@ -240,13 +243,13 @@ function ResetPasswordContent() {
             )}
           </div>
 
-          <PasswordStrength password={password} />
+          {showPasswordStrength && password && <PasswordStrength password={password} />}
 
           {/* Submit Button */}
           <Button
             type="submit"
             disabled={loading || !passwordReady || !confirmationReady}
-            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-5 rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">

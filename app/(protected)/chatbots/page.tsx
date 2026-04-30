@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { ChatbotService } from "@/lib/services/chatbot-service";
 import { Chatbot, BotType } from "@/lib/types/chatbot";
+import { useWorkspaceStore } from "@/lib/store/workspace-store";
+import { useWorkspaceRole } from "@/lib/hooks/use-workspace-role";
 import { ConfirmModal } from "@/components/common";
 import { ChatPanel } from "@/components/features/chat-panel";
 import { goeyToast as toast } from "goey-toast";
@@ -21,6 +23,7 @@ import {
   Settings2,
   AlertCircle,
   Sliders,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,6 +91,10 @@ export default function ChatbotsPage() {
   const [deleting, setDeleting] = useState(false);
   const [updating, setUpdating] = useState(false);
 
+  // Workspace & role
+  const currentWorkspaceId = useWorkspaceStore((state) => state.currentWorkspaceId);
+  const { canEdit, canDelete, isViewer } = useWorkspaceRole();
+
   // Chat panel state
   const [chatBot, setChatBot] = useState<Chatbot | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -103,7 +110,7 @@ export default function ChatbotsPage() {
 
   useEffect(() => {
     loadChatbots();
-  }, []);
+  }, [currentWorkspaceId]);
 
   const loadChatbots = async () => {
     setLoading(true);
@@ -209,13 +216,15 @@ export default function ChatbotsPage() {
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">Create and manage your AI chatbots.</p>
         </div>
-        <Button
-          onClick={() => { setFormName(""); setFormType("faq"); setShowCreateModal(true); }}
-          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300"
-        >
-          <Plus size={18} />
-          New Chatbot
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={() => { setFormName(""); setFormType("faq"); setShowCreateModal(true); }}
+            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300"
+          >
+            <Plus size={18} />
+            New Chatbot
+          </Button>
+        )}
       </div>
 
       {/* Chatbot Grid or Empty State */}
@@ -226,15 +235,25 @@ export default function ChatbotsPage() {
           </div>
           <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">No chatbots yet</h3>
           <p className="text-gray-500 dark:text-gray-400 text-sm max-w-md mx-auto mb-8">
-            Create your first AI chatbot to start automating conversations and delight your customers.
+            {canEdit
+              ? "Create your first AI chatbot to start automating conversations and delight your customers."
+              : "No chatbots available in this workspace. Contact the workspace owner to add chatbots."}
           </p>
-          <Button
-            onClick={() => { setFormName(""); setFormType("faq"); setShowCreateModal(true); }}
-            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25 px-6"
-          >
-            <Plus size={18} />
-            Create Your First Chatbot
-          </Button>
+          {canEdit && (
+            <Button
+              onClick={() => { setFormName(""); setFormType("faq"); setShowCreateModal(true); }}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-500/25 px-6"
+            >
+              <Plus size={18} />
+              Create Your First Chatbot
+            </Button>
+          )}
+          {isViewer && (
+            <div className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <Eye size={16} />
+              Read-only access
+            </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 stagger-children">
@@ -281,21 +300,27 @@ export default function ChatbotsPage() {
                         <MessageSquare size={14} />
                         Chat
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleEditClick(bot); }}>
-                        <Pencil size={14} />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); router.push(`/chatbots/${bot.id}/settings`); }}>
-                        <Sliders size={14} />
-                        Settings
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => { e.stopPropagation(); handleDeleteClick(bot); }}
-                        className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-                      >
-                        <Trash2 size={14} />
-                        Delete
-                      </DropdownMenuItem>
+                      {canEdit && (
+                        <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); handleEditClick(bot); }}>
+                          <Pencil size={14} />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {canEdit && (
+                        <DropdownMenuItem className="cursor-pointer" onClick={(e) => { e.stopPropagation(); router.push(`/chatbots/${bot.id}/settings`); }}>
+                          <Sliders size={14} />
+                          Settings
+                        </DropdownMenuItem>
+                      )}
+                      {canDelete && (
+                        <DropdownMenuItem
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(bot); }}
+                          className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                        >
+                          <Trash2 size={14} />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

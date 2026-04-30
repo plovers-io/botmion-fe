@@ -9,12 +9,15 @@ import {
   Bell,
   Check,
   CheckCheck,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Loader2,
   RefreshCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { WorkspaceMemberService } from "@/lib/services/workspace-member-service";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -55,6 +58,10 @@ export default function NotificationsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const notifications = useNotificationStore((state) => state.notifications);
   const unreadCount = useNotificationStore((state) => state.unreadCount);
@@ -69,12 +76,17 @@ export default function NotificationsPage() {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const data = await NotificationService.listNotifications();
-      setNotifications(data);
+      const data = await NotificationService.listNotifications({
+        page,
+        page_size: pageSize,
+      });
+      setNotifications(data.results);
+      setTotal(data.count);
+      setTotalPages(Math.ceil(data.count / pageSize) || 1);
     } catch {
       toast.error("Load Failed", { description: "Could not load notifications" });
     }
-  }, [setNotifications]);
+  }, [setNotifications, page, pageSize]);
 
   useEffect(() => {
     let isMounted = true;
@@ -93,6 +105,11 @@ export default function NotificationsPage() {
       isMounted = false;
     };
   }, [loadNotifications]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setPage(newPage);
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -124,11 +141,39 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleAcceptInvite = async (token?: string) => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const res = await WorkspaceMemberService.acceptInvitation(token);
+      toast.success("Invitation accepted", { description: res.detail || "" });
+      await loadNotifications();
+    } catch (e) {
+      toast.error("Accept failed", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeclineInvite = async (token?: string) => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      const res = await WorkspaceMemberService.declineInvitation(token);
+      toast.success("Invitation declined", { description: res.detail || "" });
+      await loadNotifications();
+    } catch (e) {
+      toast.error("Decline failed", { description: e instanceof Error ? e.message : "" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
+          <div className="w-16 h-16 bg-linear-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse-glow">
             <Loader2 className="animate-spin text-emerald-600" size={28} />
           </div>
           <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
@@ -144,7 +189,7 @@ export default function NotificationsPage() {
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <div className="w-10 h-10 bg-linear-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <Bell className="text-white" size={20} />
             </div>
             Notifications
@@ -183,7 +228,7 @@ export default function NotificationsPage() {
             size="sm"
             onClick={handleMarkAllRead}
             disabled={unreadCount === 0 || markingAll}
-            className="h-9 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+            className="h-9 bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
           >
             {markingAll ? (
               <>
@@ -217,7 +262,7 @@ export default function NotificationsPage() {
       {filteredNotifications.length === 0 ? (
         <Card className="bg-white/80 dark:bg-gray-800/50 backdrop-blur-sm border-gray-100 dark:border-gray-700/50 rounded-2xl shadow-sm">
           <CardContent className="p-12 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-500/15 dark:to-teal-500/15 rounded-3xl flex items-center justify-center mx-auto mb-5">
+            <div className="w-20 h-20 bg-linear-to-br from-emerald-100 to-teal-100 dark:from-emerald-500/15 dark:to-teal-500/15 rounded-3xl flex items-center justify-center mx-auto mb-5">
               <Bell size={36} className="text-emerald-500" />
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
@@ -229,11 +274,16 @@ export default function NotificationsPage() {
           </CardContent>
         </Card>
       ) : (
+        <>
         <div className="space-y-4">
           {filteredNotifications.map((notification) => {
             const createdAt = formatDateTime(notification.created_at);
             const priorityClass = PRIORITY_STYLES[notification.priority];
             const statusLabel = STATUS_LABELS[notification.status];
+            const metadata = notification.metadata as Record<string, unknown> | undefined;
+            const invitationStatus = typeof metadata?.invitation_status === "string" ? metadata.invitation_status : "pending";
+            const isWorkspaceInvitation = metadata?.event === "workspace_invitation";
+            const canOpenInvitation = isWorkspaceInvitation && invitationStatus === "pending";
 
             const viewId = notification.id;
             const canView = Number.isFinite(Number(viewId));
@@ -271,22 +321,29 @@ export default function NotificationsPage() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                      {notification.action_url && (
+                      {canView && canOpenInvitation && (
                         <Button
                           asChild
                           size="sm"
                           variant="outline"
                           className="h-8"
                         >
-                          <a
-                            href={notification.action_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
+                          <Link href={`/notifications/${viewId}?notif_id=${notification.id}`}>
                             <ExternalLink size={14} />
                             Open
-                          </a>
+                          </Link>
                         </Button>
+                      )}
+                      {/* Workspace invitation quick actions */}
+                      {isWorkspaceInvitation && invitationStatus === "pending" && (
+                        <>
+                          <Button size="sm" variant="default" className="h-8" onClick={() => handleAcceptInvite((metadata?.invitation_token as string) || undefined)}>
+                            Accept
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8" onClick={() => handleDeclineInvite((metadata?.invitation_token as string) || undefined)}>
+                            Decline
+                          </Button>
+                        </>
                       )}
                       {canView && (
                         <Button
@@ -295,10 +352,10 @@ export default function NotificationsPage() {
                           variant="ghost"
                           className="h-8 border border-emerald-200/70 dark:border-emerald-500/30"
                         >
-                          <Link href={`/notifications/${viewId}`}>View</Link>
+                          <Link href={`/notifications/${viewId}?notif_id=${notification.id}`}>View</Link>
                         </Button>
                       )}
-                      {notification.status === "unread" && (
+                      {notification.status === "unread" && !isWorkspaceInvitation && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -316,6 +373,39 @@ export default function NotificationsPage() {
             );
           })}
         </div>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700/50">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Showing {total === 0 ? 0 : (page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} of {total}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page <= 1}
+                className="h-8"
+              >
+                <ChevronLeft size={14} />
+                Previous
+              </Button>
+              <span className="text-sm text-gray-600 dark:text-gray-300 min-w-[3rem] text-center">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page >= totalPages}
+                className="h-8"
+              >
+                Next
+                <ChevronRight size={14} />
+              </Button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );
