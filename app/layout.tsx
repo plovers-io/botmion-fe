@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import "@/app/globals.css";
 import { ReactQueryProvider } from "./providers";
 
 const geistSans = Geist({
@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Botmion - AI Chatbot Platform",
-  description: "Modern Next.js application with App Router",
+  title: "Replium - AI Chatbot Platform for Modern Businesses",
+  description:
+    "Transform customer support with Replium. Build intelligent AI chatbots with custom training, real-time analytics, and seamless widget integration.",
 };
 
 export default function RootLayout({
