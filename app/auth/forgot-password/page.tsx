@@ -5,32 +5,47 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Loader, ArrowLeft } from "lucide-react";
 import { goeyToast as toast } from "goey-toast";
+import * as yup from "yup";
 import { AuthService } from "@/lib/services/auth-service";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+const forgotSchema = yup.object({
+  email: yup
+    .string()
+    .trim()
+    .required("Email is required")
+    .email("Please enter a valid email"),
+});
+
 export default function ForgotPasswordPage() {
   const router = useRouter();
   
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const validateEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email) {
-      toast.error("Validation Error", { description: "Please enter your email" });
-      return;
-    }
-
-    if (!validateEmail(email)) {
-      toast.error("Validation Error", { description: "Please enter a valid email" });
+    setErrors({});
+    try {
+      await forgotSchema.validate({ email }, { abortEarly: false });
+    } catch (validationError) {
+      if (validationError instanceof yup.ValidationError) {
+        const nextErrors: Record<string, string> = {};
+        validationError.inner.forEach((issue) => {
+          if (issue.path && !nextErrors[issue.path]) {
+            nextErrors[issue.path] = issue.message;
+          }
+        });
+        setErrors(nextErrors);
+      }
+      toast.error("Validation Error", {
+        description: "Please provide a valid email address",
+      });
       return;
     }
 
@@ -88,11 +103,16 @@ export default function ForgotPasswordPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10 py-5 rounded-xl"
+                className={`pl-10 py-5 rounded-xl ${
+                  errors.email ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                }`}
                 placeholder="Enter your email"
                 disabled={loading}
               />
             </div>
+            {errors.email && (
+              <p className="mt-1 text-xs text-rose-600">{errors.email}</p>
+            )}
           </div>
 
           {/* Submit Button */}

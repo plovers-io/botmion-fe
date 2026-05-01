@@ -6,13 +6,17 @@ import {
   NotificationChannel,
   NotificationPriority,
 } from "@/lib/types/notification";
+import { DRFPaginatedResponse } from "@/lib/types";
 
 const NOTIFICATIONS_BASE =
   process.env.NEXT_PUBLIC_NOTIFICATIONS_URL ||
   "http://localhost:8000/notifications";
 const NOTIFICATIONS_V1 = `${NOTIFICATIONS_BASE.replace(/\/$/, "")}/v1`;
 
-function buildUrl(path: string, query?: Record<string, string | number | undefined>): string {
+function buildUrl(
+  path: string,
+  query?: NotificationListParams | Record<string, string | number | undefined>
+): string {
   if (!query) {
     return `${NOTIFICATIONS_V1}${path}`;
   }
@@ -37,9 +41,42 @@ function buildUrl(path: string, query?: Record<string, string | number | undefin
 export class NotificationService {
   static async listNotifications(
     params?: NotificationListParams
-  ): Promise<NotificationItem[]> {
-    const response = await apiClient.get<NotificationItem[]>(
+  ): Promise<DRFPaginatedResponse<NotificationItem>> {
+    const response = await apiClient.get<DRFPaginatedResponse<NotificationItem>>(
       buildUrl("/notifications/", params)
+    );
+    return response.data;
+  }
+
+  static async getNotification(id: number | string): Promise<NotificationItem> {
+    const response = await apiClient.get<NotificationItem>(
+      buildUrl(`/notifications/${id}/`)
+    );
+    return response.data;
+  }
+
+  static async deleteNotification(id: number | string): Promise<void> {
+    await apiClient.delete(buildUrl(`/notifications/${id}/`));
+  }
+
+  static async getPreferences(): Promise<Record<string, unknown>> {
+    const response = await apiClient.get<Record<string, unknown>>(
+      buildUrl(`/notifications/preferences/`)
+    );
+    return response.data;
+  }
+
+  static async updatePreferences(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const response = await apiClient.put<Record<string, unknown>>(
+      buildUrl(`/notifications/preferences/`),
+      payload
+    );
+    return response.data;
+  }
+
+  static async listTemplates(): Promise<any[]> {
+    const response = await apiClient.get<any[]>(
+      buildUrl(`/notifications/templates/`)
     );
     return response.data;
   }
@@ -52,7 +89,7 @@ export class NotificationService {
   }
 
   static async updateStatus(
-    id: number,
+    id: number | string,
     status: NotificationStatus
   ): Promise<NotificationItem> {
     const response = await apiClient.patch<NotificationItem>(
@@ -62,8 +99,12 @@ export class NotificationService {
     return response.data;
   }
 
-  static getStreamUrl(): string {
-    return `${NOTIFICATIONS_V1}/notifications/stream/`;
+  static getStreamUrl(token?: string | null): string {
+    const base = `${NOTIFICATIONS_V1}/notifications/stream/`;
+    if (token) {
+      return `${base}?token=${encodeURIComponent(token)}`;
+    }
+    return base;
   }
 
   static normalizeSsePayload(payload: unknown): NotificationItem | null {

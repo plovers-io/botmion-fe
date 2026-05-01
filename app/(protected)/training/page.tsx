@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
+import { useWorkspaceStore } from "@/lib/store/workspace-store";
+import { useWorkspaceRole } from "@/lib/hooks/use-workspace-role";
 import { ChatbotService } from "@/lib/services/chatbot-service";
 import { TrainingService } from "@/lib/services/training-service";
 import { Chatbot } from "@/lib/types/chatbot";
@@ -91,6 +93,10 @@ const statusConfig: Record<
 export default function TrainingPage() {
   const { user } = useAuthStore();
 
+  // Workspace & role
+  const currentWorkspaceId = useWorkspaceStore((state) => state.currentWorkspaceId);
+  const { canEdit, canDelete, isViewer } = useWorkspaceRole();
+
   // Data state
   const [chatbots, setChatbots] = useState<Chatbot[]>([]);
   const [sources, setSources] = useState<KnowledgeSource[]>([]);
@@ -170,7 +176,7 @@ export default function TrainingPage() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [loadData, currentWorkspaceId]);
 
   // ─── Filtered data ─────────────────────────────────────────────────
 
@@ -493,14 +499,16 @@ export default function TrainingPage() {
                   {filteredSources.length}
                 </span>
               </div>
-              <Button
-                onClick={() => setShowSourceModal(true)}
-                size="sm"
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20"
-              >
-                <Plus size={16} />
-                Add Source
-              </Button>
+              {canEdit && (
+                <Button
+                  onClick={() => setShowSourceModal(true)}
+                  size="sm"
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20"
+                >
+                  <Plus size={16} />
+                  Add Source
+                </Button>
+              )}
             </div>
 
             {filteredSources.length === 0 ? (
@@ -543,27 +551,31 @@ export default function TrainingPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button
-                          onClick={() => {
-                            setSelectedSourceId(source.id);
-                            setShowDocModal(true);
-                          }}
-                          variant="ghost"
-                          size="xs"
-                          className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-                        >
-                          <Upload size={12} />
-                          Add Doc
-                        </Button>
-                        <Button
-                          onClick={() => handleDeleteSource(source.id)}
-                          variant="ghost"
-                          size="icon-xs"
-                          className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
-                          title="Delete source"
-                        >
-                          <Trash2 size={14} />
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            onClick={() => {
+                              setSelectedSourceId(source.id);
+                              setShowDocModal(true);
+                            }}
+                            variant="ghost"
+                            size="xs"
+                            className="text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                          >
+                            <Upload size={12} />
+                            Add Doc
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            onClick={() => handleDeleteSource(source.id)}
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                            title="Delete source"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
@@ -646,34 +658,38 @@ export default function TrainingPage() {
                           <Eye size={14} />
                         </Button>
 
-                        <Button
-                          onClick={() => handleTrain(doc.id)}
-                          disabled={isTraining || doc.status === "processing"}
-                          size="xs"
-                          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm"
-                        >
-                          {isTraining ? (
-                            <Loader2 size={12} className="animate-spin" />
-                          ) : (
-                            <Zap size={12} />
-                          )}
-                          {isTraining ? "Training..." : "Train"}
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            onClick={() => handleTrain(doc.id)}
+                            disabled={isTraining || doc.status === "processing"}
+                            size="xs"
+                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm"
+                          >
+                            {isTraining ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Zap size={12} />
+                            )}
+                            {isTraining ? "Training..." : "Train"}
+                          </Button>
+                        )}
 
-                        <Button
-                          onClick={() => setPendingDeleteDocId(doc.id)}
-                          disabled={isDeleting || isTraining}
-                          variant="ghost"
-                          size="icon-xs"
-                          className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
-                          title="Delete document"
-                        >
-                          {isDeleting ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={14} />
-                          )}
-                        </Button>
+                        {canDelete && (
+                          <Button
+                            onClick={() => setPendingDeleteDocId(doc.id)}
+                            disabled={isDeleting || isTraining}
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                            title="Delete document"
+                          >
+                            {isDeleting ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
@@ -694,17 +710,19 @@ export default function TrainingPage() {
                   {filteredImageDocuments.length}
                 </span>
               </div>
-              <Button
-                onClick={() => {
-                  setSelectedImageSourceId(filteredSources[0]?.id || null);
-                  setShowImageDocModal(true);
-                }}
-                size="sm"
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-md"
-              >
-                <Plus size={16} />
-                Add Image
-              </Button>
+              {canEdit && (
+                <Button
+                  onClick={() => {
+                    setSelectedImageSourceId(filteredSources[0]?.id || null);
+                    setShowImageDocModal(true);
+                  }}
+                  size="sm"
+                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-md"
+                >
+                  <Plus size={16} />
+                  Add Image
+                </Button>
+              )}
             </div>
 
             {filteredImageDocuments.length === 0 ? (
@@ -756,26 +774,30 @@ export default function TrainingPage() {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          onClick={() => handleProcessImage(doc.id)}
-                          disabled={doc.status === "processing" || isProcessing}
-                          variant="ghost"
-                          size="xs"
-                          className="text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
-                        >
-                          {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
-                          Process
-                        </Button>
-                        <Button
-                          onClick={() => handleDeleteImageDocument(doc.id)}
-                          disabled={isDeleting}
-                          variant="ghost"
-                          size="icon-xs"
-                          className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
-                          title="Delete image"
-                        >
-                          {isDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
-                        </Button>
+                        {canEdit && (
+                          <Button
+                            onClick={() => handleProcessImage(doc.id)}
+                            disabled={doc.status === "processing" || isProcessing}
+                            variant="ghost"
+                            size="xs"
+                            className="text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50"
+                          >
+                            {isProcessing ? <Loader2 size={12} className="animate-spin" /> : <Zap size={12} />}
+                            Process
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button
+                            onClick={() => handleDeleteImageDocument(doc.id)}
+                            disabled={isDeleting}
+                            variant="ghost"
+                            size="icon-xs"
+                            className="text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                            title="Delete image"
+                          >
+                            {isDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );

@@ -33,7 +33,7 @@ const SUBSCRIPTION_BASE =
   "http://localhost:8000/subscription";
 const SUBSCRIPTION_V1 = `${SUBSCRIPTION_BASE.replace(/\/$/, "")}/v1`;
 
-function buildUrl(path: string, query?: Record<string, unknown>): string {
+function buildUrl(path: string, query?: Record<string, unknown> | object): string {
   if (!query) {
     return `${SUBSCRIPTION_V1}${path}`;
   }
@@ -238,6 +238,22 @@ export class SubscriptionService {
     const response = await apiClient.post<CreatePaymentResponse>(
       buildUrl("/payments/create/"),
       data
+    );
+    return response.data;
+  }
+
+  /**
+   * Dev-only: mark a payment as successful.
+   * GET /subscription/v1/payments/sslcommerz/success/?demo=1&transaction_id=...
+   */
+  static async markPaymentSuccessDemo(
+    transactionId: string
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await apiClient.get<{ success: boolean; message?: string }>(
+      buildUrl("/payments/sslcommerz/success/", {
+        demo: 1,
+        transaction_id: transactionId,
+      })
     );
     return response.data;
   }

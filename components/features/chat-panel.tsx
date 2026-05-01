@@ -321,14 +321,20 @@ export function ChatPanel({
       if (asst.status === "processing") {
         startPolling(asst.uuid);
       }
-    } catch {
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.error ||
+        error?.response?.data?.detail ||
+        error?.response?.data?.message;
       setMessages((prev) =>
         prev
           .filter((m) => m.id !== typingId)
           .concat({
             id: `error-${Date.now()}`,
             role: "assistant",
-            content: "Sorry, I couldn't process your message. Please try again.",
+            content:
+              backendMessage ||
+              "Sorry, I couldn't process your message. Please try again.",
             timestamp: new Date().toISOString(),
             status: "failed",
           })
@@ -404,13 +410,19 @@ export function ChatPanel({
       if (asst.status === "processing") {
         startPolling(asst.uuid);
       }
-    } catch {
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.error ||
+        error?.response?.data?.detail ||
+        error?.response?.data?.message;
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantMessageId
             ? {
                 ...m,
-                content: "Retry failed. Please try sending again.",
+                content:
+                  backendMessage ||
+                  "Retry failed. Please try sending again.",
                 status: "failed",
               }
             : m
@@ -482,14 +494,20 @@ export function ChatPanel({
       if (asst.status === "processing") {
         startPolling(asst.uuid);
       }
-    } catch {
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.error ||
+        error?.response?.data?.detail ||
+        error?.response?.data?.message;
       setMessages((prev) =>
         prev
           .filter((m) => m.id !== typingId)
           .concat({
             id: `error-${Date.now()}`,
             role: "assistant",
-            content: "Sorry, voice input could not be processed. Please try again.",
+            content:
+              backendMessage ||
+              "Sorry, voice input could not be processed. Please try again.",
             timestamp: new Date().toISOString(),
             status: "failed",
           })

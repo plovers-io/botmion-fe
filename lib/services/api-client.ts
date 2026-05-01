@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "ax
 import { ApiError } from "@/lib/types";
 import { AuthService } from "./auth-service";
 import { useAuthStore } from "@/lib/store/auth-store-v2";
+import { useWorkspaceStore } from "@/lib/store/workspace-store";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/user";
@@ -136,6 +137,11 @@ class ApiClient {
         const { accessToken } = getTokensFromStore();
         if (accessToken) {
           config.headers.Authorization = `Bearer ${accessToken}`;
+        }
+        // Attach workspace ID header if available
+        const { currentWorkspaceId } = useWorkspaceStore.getState();
+        if (currentWorkspaceId) {
+          config.headers["X-Workspace-Id"] = String(currentWorkspaceId);
         }
         return config;
       },

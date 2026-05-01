@@ -22,4 +22,6 @@ export interface NotificationListParams {
   status?: NotificationStatus;
   priority?: NotificationPriority;
   channel?: NotificationChannel;
+  page?: number;
+  page_size?: number;
 }
