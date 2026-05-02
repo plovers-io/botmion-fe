@@ -13,10 +13,10 @@ interface StarBorderProps {
 }
 
 export function StarBorder({
-  as: Component = "button",
+  as: Component = "div",
   className = "",
-  color = "#10b981",
-  speed = "6s",
+  color = "#d946ef",
+  speed = "5s",
   thickness = 1,
   children,
   ...rest
@@ -26,39 +26,36 @@ export function StarBorder({
   return (
     <Tag
       className={`relative inline-flex items-center justify-center overflow-hidden rounded-xl ${className}`}
-      style={{ padding: `${thickness}px`, ...rest.style }}
+      style={{ padding: thickness, ...rest.style }}
       {...rest}
     >
+      {/* Oversized rotating gradient — only edges visible through wrapper */}
+      <span
+        className="absolute z-0 block"
+        style={{
+          top: "-100%",
+          left: "-100%",
+          width: "300%",
+          height: "300%",
+          background: `conic-gradient(from 0deg, transparent, ${color}, transparent 15%)`,
+          animation: `border-spin ${speed} linear infinite`,
+        }}
+      />
+      {/* Content covers center, only padding gap shows gradient */}
+      <span className="relative z-[1] flex items-center justify-center w-full h-full rounded-xl overflow-hidden">
+        {children}
+      </span>
+
       <style jsx>{`
-        @keyframes rotate-bottom {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes rotate-top {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(-360deg); }
+        @keyframes border-spin {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
         }
       `}</style>
-      {/* Animated gradient borders */}
-      <div
-        className="absolute inset-0 rounded-xl"
-        style={{
-          background: `conic-gradient(from 0deg, transparent 0 340deg, ${color} 360deg)`,
-          animation: `rotate-bottom ${speed} linear infinite`,
-        }}
-      />
-      <div
-        className="absolute inset-0 rounded-xl"
-        style={{
-          background: `conic-gradient(from 0deg, transparent 0 340deg, ${color} 360deg)`,
-          animation: `rotate-top ${speed} linear infinite`,
-          opacity: 0.4,
-        }}
-      />
-      {/* Inner content */}
-      <div className="relative z-10 w-full h-full bg-white rounded-xl">
-        {children}
-      </div>
     </Tag>
   );
 }

@@ -25,6 +25,9 @@ interface RotatingTextProps {
   mainClassName?: string;
   splitLevelClassName?: string;
   elementLevelClassName?: string;
+  colors?: string[];
+  animationSpeed?: number;
+  showBorder?: boolean;
 }
 
 export const RotatingText = forwardRef<
@@ -49,6 +52,9 @@ export const RotatingText = forwardRef<
     mainClassName,
     splitLevelClassName,
     elementLevelClassName,
+    colors,
+    animationSpeed = 5,
+    showBorder = false,
   } = props;
 
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
@@ -172,16 +178,39 @@ export const RotatingText = forwardRef<
     return () => clearInterval(intervalId);
   }, [next, rotationInterval, auto]);
 
+  const gradientStyle = colors
+    ? {
+        backgroundImage: `linear-gradient(90deg, ${colors.join(", ")})`,
+        backgroundSize: "200% auto",
+        WebkitBackgroundClip: "text" as const,
+        WebkitTextFillColor: "transparent" as const,
+        backgroundClip: "text" as const,
+        animation: `gradient-shift ${animationSpeed}s linear infinite`,
+      }
+    : undefined;
+
   return (
     <motion.span
-      className={cn("flex flex-wrap", mainClassName)}
+      className={cn(
+        "flex flex-wrap",
+        showBorder && colors && "px-4 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80",
+        mainClassName
+      )}
       layout="position"
     >
+      <style jsx>{`
+        @keyframes gradient-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
       <AnimatePresence mode={animatePresenceMode} initial={animatePresenceInitial}>
         <motion.div
           key={currentTextIndex}
           className={cn("flex flex-wrap", splitLevelClassName)}
           layout
+          style={gradientStyle}
         >
           {elements.map((word, wordIndex) => (
             <span key={wordIndex} className="flex">

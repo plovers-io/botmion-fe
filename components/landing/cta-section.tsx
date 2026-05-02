@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { AnimatedText, FadeIn } from "./animated-text";
@@ -51,35 +50,27 @@ export function CTASection() {
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Magnet padding={80} magnetStrength={2.5}>
               <StarBorder
-                as="div"
+                as={Link}
+                href="/auth/register"
                 color="#d946ef"
-                speed="4s"
-                thickness={2}
                 className="rounded-xl"
               >
-                <Link
-                  href="/auth/register"
-                  className="group inline-flex items-center gap-2 px-8 py-4 text-sm font-semibold text-emerald-700 bg-white hover:bg-emerald-50 rounded-xl transition-all duration-200 shadow-xl shadow-black/10"
-                >
+                <span className="group flex items-center justify-center gap-2 w-full h-full px-8 py-4 text-sm font-semibold text-emerald-700 bg-white hover:bg-emerald-50 rounded-[10px] transition-all duration-200 shadow-xl shadow-black/10">
                   Get Started Free
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                </Link>
+                </span>
               </StarBorder>
             </Magnet>
             <Magnet padding={80} magnetStrength={2.5}>
               <StarBorder
-                as="div"
+                as={Link}
+                href="/auth/login"
                 color="#d946ef"
-                speed="5s"
-                thickness={2}
                 className="rounded-xl"
               >
-                <Link
-                  href="/auth/login"
-                  className="inline-flex items-center gap-2 px-8 py-4 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl transition-all duration-200"
-                >
+                <span className="flex items-center justify-center gap-2 w-full h-full px-8 py-4 text-sm font-semibold text-white bg-black border border-white/20 rounded-[10px] transition-all duration-200">
                   Login to Dashboard
-                </Link>
+                </span>
               </StarBorder>
             </Magnet>
           </div>

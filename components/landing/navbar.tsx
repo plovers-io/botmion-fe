@@ -58,22 +58,20 @@ export function Navbar() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Magnet padding={60} magnetStrength={3}>
-                <StarBorder
-                  as="div"
-                  color="#d946ef"
-                  speed="5s"
-                  thickness={2}
-                  className="rounded-xl hidden sm:inline-flex"
-                >
-                  <Link
+              <div className="hidden sm:block">
+                <Magnet padding={60} magnetStrength={3}>
+                  <StarBorder
+                    as={Link}
                     href="/auth/login"
-                    className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl transition-all duration-200 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+                    color="#d946ef"
+                    className="rounded-xl"
                   >
-                    Login
-                  </Link>
-                </StarBorder>
-              </Magnet>
+                    <span className="flex items-center justify-center w-full h-full px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-[10px] transition-all duration-200 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30">
+                      Login
+                    </span>
+                  </StarBorder>
+                </Magnet>
+              </div>
 
               {/* Mobile toggle */}
               <button

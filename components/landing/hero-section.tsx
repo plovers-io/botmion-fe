@@ -7,6 +7,7 @@ import { DemoChat } from "./demo-chat";
 import { Magnet } from "./reactbits/magnet";
 import { RotatingText } from "./reactbits/rotating-text";
 import { StarBorder } from "./reactbits/star-border";
+import { TypewriterText } from "./reactbits/typewriter-text";
 
 export function HeroSection() {
   return (
@@ -40,63 +41,64 @@ export function HeroSection() {
               <span className="inline-flex flex-wrap items-center gap-x-3">
                 <span className="text-slate-900">Customer</span>
                 <span className="inline-block">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <RotatingText
-                      texts={["Experience", "Support", "Sales", "Engagement"]}
-                      rotationInterval={2500}
-                      staggerDuration={0.02}
-                      mainClassName="text-4xl sm:text-5xl lg:text-6xl font-extrabold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent whitespace-nowrap"
-                      elementLevelClassName="bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent"
-                    />
-                  </span>
+                  <RotatingText
+                    texts={["Experience", "Support", "Sales", "Engagement"]}
+                    rotationInterval={2500}
+                    staggerDuration={0.02}
+                    colors={["#5227FF", "#FF9FFC", "#B497CF"]}
+                    animationSpeed={8}
+                    showBorder={false}
+                    mainClassName="text-4xl sm:text-5xl lg:text-6xl font-extrabold whitespace-nowrap"
+                  />
                 </span>
               </span>
             </h1>
 
             <FadeIn delay={0.7}>
-              <p className="text-lg sm:text-xl text-slate-500 leading-relaxed mb-8 max-w-lg">
-                Replium powers your website with intelligent AI chatbots that
-                understand, learn, and convert — built for speed, scale, and
-                stunning results.
-              </p>
+              <div className="text-lg sm:text-xl text-slate-500 leading-relaxed mb-8 max-w-lg h-[3.5rem] sm:h-[4rem]">
+                <TypewriterText
+                  texts={[
+                    "Intelligent AI chatbots that understand your customers...",
+                    "Train with your data in minutes, not months...",
+                    "Convert visitors into loyal customers 24/7...",
+                  ]}
+                  typingSpeed={60}
+                  deletingSpeed={30}
+                  pauseDuration={2500}
+                  className="text-slate-500"
+                  cursorClassName="bg-emerald-500"
+                />
+              </div>
             </FadeIn>
 
             <FadeIn delay={0.85}>
               <div className="flex flex-wrap items-center gap-4 mb-10">
                 <Magnet padding={80} magnetStrength={2.5}>
                   <StarBorder
-                    as="div"
+                    as={Link}
+                    href="/auth/register"
                     color="#d946ef"
-                    speed="4s"
-                    thickness={2}
                     className="rounded-xl"
                   >
-                    <Link
-                      href="/auth/register"
-                      className="group inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-xl transition-all duration-200 shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/30"
-                    >
+                    <span className="group flex items-center justify-center gap-2 w-full h-full px-7 py-3.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-[10px] transition-all duration-200 shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/30">
                       Get Started Free
                       <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                    </Link>
+                    </span>
                   </StarBorder>
                 </Magnet>
                 <Magnet padding={80} magnetStrength={2.5}>
                   <StarBorder
-                    as="div"
+                    as={Link}
+                    href="#demo"
                     color="#d946ef"
-                    speed="5s"
-                    thickness={2}
                     className="rounded-xl"
                   >
-                    <Link
-                      href="#demo"
-                      className="group inline-flex items-center gap-2 px-7 py-3.5 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-xl transition-all duration-200"
-                    >
+                    <span className="group flex items-center justify-center gap-2 w-full h-full px-7 py-3.5 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-[10px] transition-all duration-200">
                       <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-100 group-hover:bg-slate-200 transition-colors">
                         <Play className="w-3 h-3 text-slate-600 ml-0.5" />
                       </span>
                       Watch Demo
-                    </Link>
+                    </span>
                   </StarBorder>
                 </Magnet>
               </div>
